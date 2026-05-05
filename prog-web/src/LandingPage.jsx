@@ -3,170 +3,126 @@ import "./LandingPage.css";
 
 function LandingPage() {
   const posters = [
-    { title: "The Night Frame", year: "2025", rating: "4.2" },
-    { title: "Silent Room", year: "2024", rating: "3.9" },
-    { title: "Blue Horizon", year: "2023", rating: "4.5" },
-    { title: "Last Scene", year: "2022", rating: "4.1" },
-    { title: "Neon Dreams", year: "2025", rating: "4.7" },
+    { title: "Dune: Part Two", rating: "4.3", color: "poster-a" },
+    { title: "Poor Things", rating: "4.1", color: "poster-b" },
+    { title: "The Holdovers", rating: "4.0", color: "poster-c" },
+    { title: "Past Lives", rating: "4.2", color: "poster-d" },
+    { title: "Oppenheimer", rating: "4.4", color: "poster-e" },
+    { title: "Anatomy of a Fall", rating: "4.2", color: "poster-f" },
   ];
 
   const features = [
-    {
-      title: "Tieni traccia delle visioni",
-      description:
-        "Registra i film e le serie che hai visto, aggiungi la data di visione e costruisci il tuo diario personale.",
-    },
-    {
-      title: "Crea la tua Watchlist",
-      description:
-        "Salva le opere che vuoi vedere in futuro e ritrovale facilmente quando non sai cosa guardare.",
-    },
-    {
-      title: "Vota e commenta",
-      description:
-        "Assegna un rating, scrivi un commento e condividi la tua opinione con altri appassionati.",
-    },
-    {
-      title: "Crea liste tematiche",
-      description:
-        "Organizza film e serie in liste personalizzate, pubbliche o private, in base ai tuoi gusti.",
-    },
+    "Track films you’ve watched.",
+    "Save those you want to see.",
+    "Tell your friends what’s good.",
   ];
 
   return (
     <div className="landing-page">
       <header className="navbar">
-        <div className="logo">
-          <span className="logo-dot green"></span>
-          <span className="logo-dot orange"></span>
-          <span className="logo-dot blue"></span>
-          <span className="logo-text">FilmDiary</span>
+        <div className="brand">
+          <div className="brand-dots">
+            <span className="dot orange"></span>
+            <span className="dot green"></span>
+            <span className="dot blue"></span>
+          </div>
+          <span className="brand-name">Letterboxd</span>
         </div>
 
         <nav className="nav-links">
-          <a href="#features">Funzionalità</a>
-          <a href="#popular">Popolari</a>
-          <a href="#community">Community</a>
-          <a href="#login">Accedi</a>
-          <button className="nav-button">Registrati</button>
+          <a href="#films">Films</a>
+          <a href="#lists">Lists</a>
+          <a href="#members">Members</a>
+          <a href="#journal">Journal</a>
+          <button className="sign-in">Sign in</button>
+          <button className="create-account">Create account</button>
         </nav>
       </header>
 
       <main>
         <section className="hero">
-          <div className="hero-content">
-            <p className="eyebrow">Il tuo diario cinematografico personale</p>
-
-            <h1>
-              Traccia ciò che guardi.
-              <br />
-              Salva ciò che vuoi vedere.
-              <br />
-              Scopri cosa piace agli altri.
-            </h1>
-
-            <p className="hero-description">
-              Una piattaforma per registrare film e serie, creare liste,
-              scrivere commenti, assegnare voti e seguire le attività degli
-              altri utenti.
-            </p>
-
-            <div className="hero-actions">
-              <button className="primary-button">Inizia ora</button>
-              <button className="secondary-button">Esplora il catalogo</button>
-            </div>
-
-            <div className="hero-stats">
-              <div>
-                <strong>12k+</strong>
-                <span>opere catalogate</span>
-              </div>
-              <div>
-                <strong>45k+</strong>
-                <span>recensioni</span>
-              </div>
-              <div>
-                <strong>8k+</strong>
-                <span>liste create</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="poster-wall" id="popular">
+          <div className="poster-background" id="films">
             {posters.map((poster, index) => (
-              <article className={`poster-card poster-${index + 1}`} key={poster.title}>
-                <div className="poster-gradient"></div>
-                <div className="poster-info">
-                  <h3>{poster.title}</h3>
-                  <p>{poster.year}</p>
-                  <span>★ {poster.rating}</span>
+              <article className={`poster ${poster.color}`} key={index}>
+                <div className="poster-content">
+                  <span className="poster-title">{poster.title}</span>
+                  <span className="poster-rating">★ {poster.rating}</span>
                 </div>
               </article>
             ))}
           </div>
+
+          <div className="hero-overlay"></div>
+
+          <div className="hero-content">
+            <h1>
+              Track films you’ve watched.
+              <br />
+              Save those you want to see.
+              <br />
+              Tell your friends what’s good.
+            </h1>
+
+            <p>
+              Letterboxd is a social platform for film lovers. Keep a diary of
+              everything you watch, rate and review films, create lists and
+              follow your friends’ activity.
+            </p>
+
+            <button className="hero-button">Get started, it’s free</button>
+
+            <div className="feature-row">
+              {features.map((feature) => (
+                <div className="feature-pill" key={feature}>
+                  {feature}
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
-        <section className="features-section" id="features">
-          <div className="section-heading">
-            <p className="eyebrow">Funzionalità principali</p>
-            <h2>Tutto quello che serve per organizzare la tua esperienza cinematografica.</h2>
+        <section className="content-section">
+          <div className="section-title">
+            <h2>Popular this week</h2>
+            <a href="#more">More</a>
           </div>
 
-          <div className="features-grid">
-            {features.map((feature) => (
-              <article className="feature-card" key={feature.title}>
-                <div className="feature-icon">●</div>
-                <h3>{feature.title}</h3>
-                <p>{feature.description}</p>
-              </article>
+          <div className="film-grid">
+            {posters.map((poster, index) => (
+              <div className={`film-card ${poster.color}`} key={index}>
+                <div className="film-info">
+                  <span>{poster.title}</span>
+                  <small>★ {poster.rating}</small>
+                </div>
+              </div>
             ))}
           </div>
         </section>
 
-        <section className="community-section" id="community">
-          <div className="community-card">
-            <div>
-              <p className="eyebrow">Community</p>
-              <h2>Segui altri utenti e scopri nuove opere attraverso le loro attività.</h2>
-              <p>
-                Visualizza profili, commenti, voti, liste pubbliche e attività
-                recenti. Perché scegliere un film da soli era troppo semplice,
-                evidentemente.
-              </p>
-            </div>
+        <section className="three-columns">
+          <article>
+            <h3>Keep your diary</h3>
+            <p>
+              Log every film or series you watch and attach a date, rating and
+              optional review.
+            </p>
+          </article>
 
-            <div className="activity-feed">
-              <div className="activity-item">
-                <span className="avatar">L</span>
-                <p>
-                  <strong>Luca</strong> ha aggiunto <em>Neon Dreams</em> alla watchlist.
-                </p>
-              </div>
+          <article>
+            <h3>Build your watchlist</h3>
+            <p>
+              Save titles you want to watch later and keep them organized in a
+              personal queue.
+            </p>
+          </article>
 
-              <div className="activity-item">
-                <span className="avatar">F</span>
-                <p>
-                  <strong>Francesco</strong> ha votato <em>Blue Horizon</em> ★★★★★
-                </p>
-              </div>
-
-              <div className="activity-item">
-                <span className="avatar">N</span>
-                <p>
-                  <strong>Nicu</strong> ha creato la lista <em>Film da recuperare</em>.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="cta-section">
-          <h2>Costruisci il tuo archivio personale.</h2>
-          <p>
-            Registra le tue visioni, organizza le opere preferite e partecipa
-            alla community.
-          </p>
-          <button className="primary-button">Crea un account gratuito</button>
+          <article>
+            <h3>Share your taste</h3>
+            <p>
+              Follow other members, discover their lists and interact with their
+              reviews.
+            </p>
+          </article>
         </section>
       </main>
     </div>
