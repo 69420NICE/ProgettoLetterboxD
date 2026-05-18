@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import "./LandingPage.css";
 
 function LandingPage() {
@@ -30,7 +31,7 @@ function LandingPage() {
         </div>
 
         <nav className="nav-links">
-          <a href="#films">Films</a>
+          <Link to="/catalogo">Films</Link>
           <a href="#lists">Lists</a>
           <a href="#members">Members</a>
           <a href="#journal">Journal</a>
