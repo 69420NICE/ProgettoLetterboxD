@@ -16,12 +16,6 @@ function LandingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const features = [
-    "Track films you’ve watched.",
-    "Save those you want to see.",
-    "Tell your friends what’s good.",
-  ];
-
   useEffect(() => {
     const fetchOpere = async () => {
       try {
@@ -86,22 +80,15 @@ function LandingPage() {
               follow your friends’ activity.
             </p>
 
-            <button className="hero-button">Get started, it’s free</button>
-
-            <div className="feature-row">
-              {features.map((feature) => (
-                <div className="feature-pill" key={feature}>
-                  {feature}
-                </div>
-              ))}
-            </div>
+            <button className="hero-button">Get started - it’s free!</button>
           </div>
         </section>
 
         <section className="content-section">
           <div className="section-title">
-            <h2>Popular this week</h2>
-            <a href="#more" className="more-link">More</a>
+            <h2>See all films</h2>
+            {/* Sostituito tag <a> con il Link di React Router collegato alla rotta giusta */}
+            <Link to="/catalogo" className="more-link">More</Link>
           </div>
 
           <div className="film-grid">
