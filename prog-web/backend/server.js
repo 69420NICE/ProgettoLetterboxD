@@ -166,6 +166,93 @@ app.post("/api/utenti", (req, res) => {
 });
 
 /* =========================
+   PROFESSIONISTI (CAST & CREW)
+========================= */
+
+// Recuperare i dettagli di un professionista e la sua filmografia tramite slug
+app.get("/api/professionisti/dettaglio/:slug", (req, res) => {
+  const { slug } = req.params;
+
+  // Funzione helper per lo slug
+  const generateSlug = (testo) => testo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+  // 1. Troviamo il professionista
+  db.query("SELECT * FROM professionista", (err, professionisti) => {
+    if (err) return res.status(500).json({ errore: "Errore recupero professionisti" });
+
+    const professionista = professionisti.find(p => generateSlug(p.nome) === slug);
+    if (!professionista) return res.status(404).json({ errore: "Professionista non trovato" });
+
+    // 2. Query JOIN con UNION per trovare tutti i film in cui ha recitato e in cui ha lavorato come crew
+    const queryFilmografia = `
+      SELECT o.id, o.titolo, o.poster, o.anno_uscita, r.nome_personaggio 
+      FROM recita r 
+      JOIN opera o ON r.id_opera = o.id 
+      WHERE r.id_professionista = ?
+      
+      UNION
+      
+      SELECT o.id, o.titolo, o.poster, o.anno_uscita, l.ruolo_lavorativo AS nome_personaggio 
+      FROM lavora l 
+      JOIN opera o ON l.id_opera = o.id 
+      WHERE l.id_professionista = ?
+      
+      ORDER BY anno_uscita DESC
+    `;
+
+    // Passiamo l'ID del professionista due volte nell'array (una volta per la tabella recita, una per lavora)
+    db.query(queryFilmografia, [professionista.id, professionista.id], (err, filmRes) => {
+      if (err) return res.status(500).json({ errore: "Errore recupero filmografia" });
+      
+      // Inviamo al frontend i dati dell'attore/regista + l'array dei suoi film
+      res.json({
+        ...professionista,
+        filmografia: filmRes
+      });
+    });
+  });
+});
+
+
+/* =========================
+   GENERI
+========================= */
+
+// Recuperare i dettagli di un genere e i suoi film tramite slug
+app.get("/api/generi/dettaglio/:slug", (req, res) => {
+  const { slug } = req.params;
+
+  const generateSlug = (testo) => testo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+  // 1. Troviamo il genere
+  db.query("SELECT * FROM genere", (err, generi) => {
+    if (err) return res.status(500).json({ errore: "Errore recupero generi" });
+
+    const genere = generi.find(g => generateSlug(g.nome_genere) === slug);
+    if (!genere) return res.status(404).json({ errore: "Genere non trovato" });
+
+    // 2. Troviamo i film associati a questo genere
+    const queryFilm = `
+      SELECT o.id, o.titolo, o.poster, o.anno_uscita
+      FROM appartiene a
+      JOIN opera o ON a.id_opera = o.id
+      WHERE a.id_genere = ?
+      ORDER BY o.anno_uscita DESC
+    `;
+
+    db.query(queryFilm, [genere.id], (err, filmRes) => {
+      if (err) return res.status(500).json({ errore: "Errore recupero film del genere" });
+      
+      res.json({
+        ...genere,
+        opere: filmRes
+      });
+    });
+  });
+});
+
+
+/* =========================
    AVVIO SERVER
 ========================= */
 

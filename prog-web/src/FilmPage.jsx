@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom"; // Aggiunto Link qui
 import Navbar from "./Navbar";
+
+// Funzione helper per generare lo slug dell'URL dai nomi
+const generateSlug = (testo) => {
+  return testo
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+};
 
 function FilmPage() {
   // useParams estrae lo "slug" dall'URL (es. "il-padrino")
@@ -85,10 +93,19 @@ function FilmPage() {
           
           <div style={{ fontSize: "1.1rem", marginBottom: "20px" }}>
             <span style={{ color: "white", fontWeight: "bold" }}>{film.anno_uscita}</span>
+            
+            {/* Sezione Regista resa cliccabile */}
             {film.regista && (
               <>
                 <span style={{ margin: "0 8px" }}>Directed by</span>
-                <span style={{ color: "white", fontWeight: "bold" }}>{film.regista}</span>
+                <Link 
+                  to={`/attore/${generateSlug(film.regista)}`} 
+                  style={{ color: "white", fontWeight: "bold", textDecoration: "none" }}
+                  onMouseOver={(e) => e.target.style.color = "#40bcf4"}
+                  onMouseOut={(e) => e.target.style.color = "white"}
+                >
+                  {film.regista}
+                </Link>
               </>
             )}
           </div>
@@ -98,7 +115,7 @@ function FilmPage() {
             <p>{film.trama}</p>
           </div>
 
-          {/* Sezione Cast */}
+          {/* Sezione Cast resa cliccabile */}
           {film.cast && film.cast.length > 0 && (
             <div style={{ marginBottom: "20px" }}>
               <span style={{ display: "block", textTransform: "uppercase", fontSize: "0.8rem", color: "#678", borderBottom: "1px solid #456", paddingBottom: "5px", marginBottom: "10px" }}>
@@ -106,9 +123,29 @@ function FilmPage() {
               </span>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
                 {film.cast.map(attore => (
-                  <span key={attore.id} style={{ background: "#2c3440", color: "#8c9babc4", padding: "4px 8px", borderRadius: "3px", fontSize: "0.9rem" }}>
+                  <Link 
+                    key={attore.id} 
+                    to={`/attore/${generateSlug(attore.nome)}`}
+                    style={{ 
+                      background: "#2c3440", 
+                      color: "#8c9babc4", 
+                      padding: "4px 8px", 
+                      borderRadius: "3px", 
+                      fontSize: "0.9rem",
+                      textDecoration: "none",
+                      display: "inline-block"
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.background = "#40bcf4";
+                      e.target.style.color = "white";
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.background = "#2c3440";
+                      e.target.style.color = "#8c9babc4";
+                    }}
+                  >
                     {attore.nome}
-                  </span>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -122,9 +159,30 @@ function FilmPage() {
                   Genres
                 </span>
                 <div style={{ display: "flex", gap: "10px" }}>
-                  {film.generi.map((genere, index) => (
-                    <span key={index} style={{ color: "white", fontSize: "0.9rem" }}>{genere}</span>
-                  ))}
+{film.generi.map((genere, index) => (
+    <Link 
+      key={index} 
+      to={`/genere/${generateSlug(genere)}`}
+      style={{ 
+        color: "#8c9babc4", 
+        fontSize: "0.9rem",
+        textDecoration: "none",
+        background: "#2c3440",
+        padding: "4px 8px",
+        borderRadius: "3px"
+      }}
+      onMouseOver={(e) => {
+        e.target.style.background = "#40bcf4";
+        e.target.style.color = "white";
+      }}
+      onMouseOut={(e) => {
+        e.target.style.background = "#2c3440";
+        e.target.style.color = "#8c9babc4";
+      }}
+    >
+      {genere}
+    </Link>
+  ))}
                 </div>
               </div>
             )}
