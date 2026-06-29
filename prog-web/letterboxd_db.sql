@@ -10,8 +10,6 @@ COLLATE utf8mb4_unicode_ci;
 
 USE letterboxd_db;
 
-SET FOREIGN_KEY_CHECKS = 0;
-
 DROP TABLE IF EXISTS appartiene;
 DROP TABLE IF EXISTS lavora;
 DROP TABLE IF EXISTS recita;
@@ -482,3 +480,110 @@ CREATE INDEX idx_visione_utente ON visione(id_utente);
 CREATE INDEX idx_visione_opera ON visione(id_opera);
 CREATE INDEX idx_watchlist_utente ON watchlist(id_utente);
 CREATE INDEX idx_segnalazione_stato ON segnalazione(stato);
+
+
+use letterboxd_db;
+-- ==========================================
+-- 1. TABELLE "PADRE" (Nessuna dipendenza)
+-- ==========================================
+
+-- UTENTI
+INSERT INTO utente (id, username, email, password, ruolo) VALUES
+(1, 'admin_user', 'admin@letterboxdclone.it', 'admin123', 'amministratore'),
+(2, 'cinefilo_ita', 'cinefilo@email.it', 'password123', 'utente'),
+(3, 'mod_giustiziere', 'mod@letterboxdclone.it', 'mod123', 'moderatore');
+
+-- GENERI
+INSERT INTO genere (id, nome_genere) VALUES 
+(1, 'Fantascienza'), 
+(2, 'Drammatico'), 
+(3, 'Commedia'),
+(4, 'Animazione'), 
+(5, 'Crimine'), 
+(6, 'Azione');
+
+-- OPERE (Film)
+INSERT INTO opera (id, titolo, trama, anno_uscita, durata_minuti, poster, tipo_opera) VALUES
+(1, 'Poor Things', 'La fantastica evoluzione di Bella Baxter, una giovane donna riportata alla vita dal brillante scienziato Dr. Godwin Baxter.', 2023, 141, 'https://image.tmdb.org/t/p/w500/kCGlIMHnOm8JPXq3rXM6c5wMxcT.jpg', 'film'),
+(2, 'Past Lives', 'Nora e Hae Sung, due amici d''infanzia, si separano quando la famiglia di Nora emigra. Si ritrovano anni dopo.', 2023, 106, 'https://image.tmdb.org/t/p/w500/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg', 'film'),
+(3, 'Oppenheimer', 'La storia del fisico J. Robert Oppenheimer e del suo ruolo nello sviluppo della bomba atomica.', 2023, 181, 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg', 'film'),
+(4, 'The Dark Knight', 'Batman affronta la sua più grande minaccia: il Joker.', 2008, 152, 'https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg', 'film'),
+(5, 'Spider-Man: Into the Spider-Verse', 'Il giovane Miles Morales scopre il multiverso e deve imparare cosa significa essere Spider-Man.', 2018, 117, 'https://m.media-amazon.com/images/M/MV5BMjMwNDkxMTgzOF5BMl5BanBnXkFtZTgwNTkwNTQ3NjM@._V1_FMjpg_UX1000_.jpg', 'film'),
+(6, 'Il Padrino', 'Il patriarca di una dinastia della criminalità organizzata trasferisce il controllo del suo impero clandestino al figlio riluttante.', 1972, 175, 'https://m.media-amazon.com/images/M/MV5BM2MyNjYxNmUtYTAwNi00MTYxLWJmNWYtYzZlODY3ZTk3OTFlXkEyXkFqcGdeQXVyNzkwMjQ5NzM@._V1_FMjpg_UX1000_.jpg', 'film');
+
+-- PROFESSIONISTI
+INSERT INTO professionista (id, nome, biografia, immagine) VALUES
+(1, 'Emma Stone', 'Attrice premio Oscar per Poor Things.', 'https://image.tmdb.org/t/p/w500/cZ8a3QvAnj2cgcgVL6g4XaqPzpL.jpg'),
+(2, 'Greta Lee', 'Attrice e scrittrice statunitense.', 'https://image.tmdb.org/t/p/w500/2vZNlZItXmItG0z3ZpTz9L12J9L.jpg'),
+(3, 'Cillian Murphy', 'Attore irlandese, noto per Oppenheimer.', 'https://image.tmdb.org/t/p/w500/405ilvApe10pZ0t8uG154gKzDqk.jpg'),
+(4, 'Christian Bale', 'Celebre per il ruolo di Bruce Wayne.', 'https://image.tmdb.org/t/p/w500/b7fTC9WFkgqGOv77mLQAlPlI5VN.jpg'),
+(5, 'Shameik Moore', 'Voce originale di Miles Morales.', 'https://image.tmdb.org/t/p/w500/21qEey5B6HjKqXwunK9S5mB7dOo.jpg'),
+(6, 'Marlon Brando', 'Leggenda indiscussa del cinema.', 'https://image.tmdb.org/t/p/w500/fuTEPMsBtV1zE98ujPONbKiYDc2.jpg'),
+(7, 'Christopher Nolan', 'Regista visionario e sceneggiatore.', 'https://image.tmdb.org/t/p/w500/xuAIuYSmsUzKlUMBFGVZaWsY3DZ.jpg');
+
+
+-- ==========================================
+-- 2. TABELLE "FIGLIO" (Testiamo le Foreign Key!)
+-- ==========================================
+
+-- APPARTIENE (Verifica ID Opera e ID Genere)
+INSERT INTO appartiene (id_opera, id_genere) VALUES
+(1, 3), 
+(2, 2), 
+(3, 2), 
+(4, 6), 
+(5, 4), 
+(6, 5); 
+
+-- RECITA E LAVORA (Verifica ID Opera e ID Professionista)
+INSERT INTO recita (id_professionista, id_opera, nome_personaggio) VALUES
+(1, 1, 'Bella Baxter'),
+(2, 2, 'Nora'),
+(3, 3, 'J. Robert Oppenheimer'),
+(4, 4, 'Bruce Wayne / Batman'),
+(5, 5, 'Miles Morales'),
+(6, 6, 'Vito Corleone');
+
+INSERT INTO lavora (id_professionista, id_opera, ruolo_lavorativo) VALUES
+(7, 3, 'Regista'), 
+(7, 4, 'Regista'); 
+
+-- ==========================================
+-- 3. TABELLE "NIPOTI" E SOCIAL
+-- ==========================================
+
+-- INTERAZIONI DI BASE
+INSERT INTO voto (id_utente, id_opera, valore_stelle) VALUES
+(2, 3, 4.5); 
+
+INSERT INTO visione (id_utente, id_opera, data_visione, numero) VALUES 
+(2, 4, '2026-06-20', 1); 
+
+INSERT INTO watchlist (id_utente, id_opera, note, ordine) VALUES 
+(2, 6, 'Un classico che devo assolutamente recuperare!', 1); 
+
+-- RECENSIONI (Dipende da utente e opera)
+INSERT INTO recensione (id, testo, spoiler, id_utente, id_opera) VALUES 
+(1, 'Un capolavoro assoluto. La performance di Heath Ledger è inarrivabile.', 0, 2, 4);
+
+-- COMMENTI E LIKE (Dipendono dalla recensione appena inserita)
+INSERT INTO commento (id, testo, id_utente, id_recensione) VALUES 
+(1, 'Sono totalmente d''accordo. Il miglior cinecomic mai realizzato.', 1, 1);
+
+INSERT INTO like_azione (id_utente, id_target, tipo_target) VALUES 
+(1, 1, 'recensione');
+
+-- LISTE (Dipende dall'utente, poi da opera)
+INSERT INTO lista (id, titolo, descrizione, pubblica, id_utente) VALUES 
+(1, 'I miei preferiti di Nolan', 'Raccolta dei capolavori diretti da Christopher Nolan.', 1, 1);
+
+INSERT INTO include_lista_opera (id_lista, id_opera, ordine_inserimento) VALUES 
+(1, 3, 1),
+(1, 4, 2);
+
+-- FOLLOW & SEGNALAZIONI (Dipendono dagli utenti e recensioni)
+INSERT INTO follow (id_follower, id_seguito) VALUES 
+(2, 1); 
+
+INSERT INTO segnalazione (id, motivazione, stato, id_inviante, id_riguardo_recensione) VALUES 
+(1, 'Controllo spoiler richiesto da un altro utente.', 'presa_in_carico', 3, 1);

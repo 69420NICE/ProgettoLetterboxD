@@ -21,7 +21,6 @@ const Navbar = () => {
         <Link to="/catalogo">Films</Link>
         <a href="#lists">Lists</a>
         <a href="#members">Members</a>
-        <a href="#journal">Journal</a>
         <button className="sign-in">Sign in</button>
         <button className="create-account">Create account</button>
       </nav>
