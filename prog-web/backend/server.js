@@ -117,8 +117,6 @@ app.delete("/api/opere/:id", (req, res) => {
   db.query(query, [id], (err, results) => {
     if (err) {
       console.error("Errore eliminazione opera:", err);
-      // Nota: se l'opera è collegata a recensioni o attori, il database potrebbe bloccare 
-      // l'eliminazione a meno che non sia impostato "ON DELETE CASCADE".
       return res.status(500).json({ errore: "Errore nell'eliminazione" });
     }
 
@@ -130,42 +128,33 @@ app.delete("/api/opere/:id", (req, res) => {
   });
 });
 
-// Recuperare i dettagli completi di un film (Inclusi Cast, Regista e Generi) tramite lo slug
+// Recuperare i dettagli completi di un film
 app.get("/api/opere/dettaglio/:slug", (req, res) => {
   const { slug } = req.params;
 
-  // 1. Troviamo il film confrontando gli slug
   db.query("SELECT * FROM opera", (err, opere) => {
     if (err) return res.status(500).json({ errore: "Errore recupero opere" });
 
-    // Funzione identica a quella del frontend per generare lo slug
     const generateSlug = (titolo) => titolo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-    
-    // Troviamo l'opera che corrisponde allo slug richiesto nell'URL
     const opera = opere.find(o => generateSlug(o.titolo) === slug);
 
     if (!opera) return res.status(404).json({ errore: "Film non trovato" });
 
     const operaId = opera.id;
 
-    // 2. Eseguiamo le query per recuperare le relazioni
     const queryRegista = `SELECT p.nome FROM lavora l JOIN professionista p ON l.id_professionista = p.id WHERE l.id_opera = ? AND l.ruolo_lavorativo = 'Regista'`;
     const queryCast = `SELECT p.id, p.nome, r.nome_personaggio FROM recita r JOIN professionista p ON r.id_professionista = p.id WHERE r.id_opera = ?`;
     const queryGeneri = `SELECT g.nome_genere FROM appartiene a JOIN genere g ON a.id_genere = g.id WHERE a.id_opera = ?`;
 
-    // Eseguiamo le query in cascata (o tramite Promise se usi mysql2/promise)
     db.query(queryRegista, [operaId], (err, registaRes) => {
       db.query(queryCast, [operaId], (err, castRes) => {
         db.query(queryGeneri, [operaId], (err, generiRes) => {
-          
-          // Assembliamo il JSON finale da inviare al frontend React
           res.json({
             ...opera,
             regista: registaRes.length > 0 ? registaRes[0].nome : null,
             cast: castRes,
-            generi: generiRes.map(g => g.nome_genere) // Trasforma l'array di oggetti in un array di stringhe
+            generi: generiRes.map(g => g.nome_genere)
           });
-
         });
       });
     });
@@ -173,7 +162,7 @@ app.get("/api/opere/dettaglio/:slug", (req, res) => {
 });
 
 /* =========================
-   UTENTI
+   UTENTI E AUTENTICAZIONE
 ========================= */
 
 // Leggere utenti
@@ -189,21 +178,18 @@ app.get("/api/utenti", (req, res) => {
       console.error("Errore recupero utenti:", err);
       return res.status(500).json({ errore: "Errore nel recupero degli utenti" });
     }
-
     res.json(results);
   });
 });
 
-// Inserire nuovo utente (Modificato per usare bcrypt)
+// Inserire nuovo utente (Registrazione)
 app.post("/api/utenti", async (req, res) => {
   const { username, email, password, ruolo } = req.body;
 
   try {
-    // 1. Criptiamo la password
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // 2. Inseriamo i dati nel database
     const query = `
       INSERT INTO utente 
       (username, email, password, ruolo)
@@ -212,7 +198,6 @@ app.post("/api/utenti", async (req, res) => {
 
     db.query(query, [username, email, hashedPassword, ruolo || "utente"], (err, results) => {
       if (err) {
-        // Gestione dell'errore se email o username esistono già
         if (err.code === 'ER_DUP_ENTRY') {
           return res.status(409).json({ errore: "Username o email già in uso." });
         }
@@ -231,25 +216,64 @@ app.post("/api/utenti", async (req, res) => {
   }
 });
 
+// NUOVA ROTTA: Login Utente
+app.post("/api/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // 1. Cerca l'utente per email
+    const query = "SELECT * FROM utente WHERE email = ?";
+    db.query(query, [email], async (err, results) => {
+      if (err) {
+        console.error("Errore ricerca utente:", err);
+        return res.status(500).json({ errore: "Errore interno del server" });
+      }
+
+      // Se non trova nessuno con quell'email
+      if (results.length === 0) {
+        return res.status(401).json({ errore: "Credenziali non valide" });
+      }
+
+      const utenteTrovato = results[0];
+
+      // 2. Confronta la password inviata con l'hash salvato nel DB usando bcrypt
+      const passwordCorretta = await bcrypt.compare(password, utenteTrovato.password);
+
+      if (!passwordCorretta) {
+        return res.status(401).json({ errore: "Credenziali non valide" });
+      }
+
+      // 3. Login riuscito! Non mandiamo la password indietro al client per sicurezza
+      res.status(200).json({
+        messaggio: "Accesso effettuato con successo",
+        utente: {
+          id: utenteTrovato.id,
+          username: utenteTrovato.username,
+          email: utenteTrovato.email,
+          ruolo: utenteTrovato.ruolo
+        }
+      });
+    });
+  } catch (error) {
+    console.error("Errore durante il login:", error);
+    res.status(500).json({ errore: "Errore interno del server" });
+  }
+});
+
 /* =========================
    PROFESSIONISTI (CAST & CREW)
 ========================= */
 
-// Recuperare i dettagli di un professionista e la sua filmografia tramite slug
 app.get("/api/professionisti/dettaglio/:slug", (req, res) => {
   const { slug } = req.params;
-
-  // Funzione helper per lo slug
   const generateSlug = (testo) => testo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
-  // 1. Troviamo il professionista
   db.query("SELECT * FROM professionista", (err, professionisti) => {
     if (err) return res.status(500).json({ errore: "Errore recupero professionisti" });
 
     const professionista = professionisti.find(p => generateSlug(p.nome) === slug);
     if (!professionista) return res.status(404).json({ errore: "Professionista non trovato" });
 
-    // 2. Query JOIN con UNION per trovare tutti i film in cui ha recitato e in cui ha lavorato come crew
     const queryFilmografia = `
       SELECT o.id, o.titolo, o.poster, o.anno_uscita, r.nome_personaggio 
       FROM recita r 
@@ -266,11 +290,9 @@ app.get("/api/professionisti/dettaglio/:slug", (req, res) => {
       ORDER BY anno_uscita DESC
     `;
 
-    // Passiamo l'ID del professionista due volte nell'array (una volta per la tabella recita, una per lavora)
     db.query(queryFilmografia, [professionista.id, professionista.id], (err, filmRes) => {
       if (err) return res.status(500).json({ errore: "Errore recupero filmografia" });
       
-      // Inviamo al frontend i dati dell'attore/regista + l'array dei suoi film
       res.json({
         ...professionista,
         filmografia: filmRes
@@ -279,7 +301,6 @@ app.get("/api/professionisti/dettaglio/:slug", (req, res) => {
   });
 });
 
-// Aggiornare un professionista esistente (Metodo PUT)
 app.put("/api/professionisti/:id", (req, res) => {
   const { id } = req.params;
   const { nome, biografia, immagine } = req.body;
@@ -300,10 +321,8 @@ app.put("/api/professionisti/:id", (req, res) => {
   });
 });
 
-// Eliminare un professionista (Metodo DELETE)
 app.delete("/api/professionisti/:id", (req, res) => {
   const { id } = req.params;
-
   const query = "DELETE FROM professionista WHERE id = ?";
 
   db.query(query, [id], (err, results) => {
@@ -315,12 +334,8 @@ app.delete("/api/professionisti/:id", (req, res) => {
   });
 });
 
-
-// Aggiungere un nuovo professionista (Metodo POST)
 app.post("/api/professionisti", (req, res) => {
   const { nome, biografia, immagine } = req.body;
-
-  // Assicurati che i nomi delle colonne corrispondano esattamente a quelle nel tuo database
   const query = "INSERT INTO professionista (nome, biografia, immagine) VALUES (?, ?, ?)";
 
   db.query(query, [nome, biografia, immagine], (err, results) => {
@@ -328,8 +343,6 @@ app.post("/api/professionisti", (req, res) => {
       console.error("Errore inserimento professionista:", err);
       return res.status(500).json({ errore: "Errore durante l'inserimento nel database" });
     }
-    
-    // Restituiamo l'ID appena creato così il frontend può aggiornare la tabella senza ricaricare la pagina
     res.status(201).json({ 
       messaggio: "Professionista aggiunto correttamente", 
       id: results.insertId 
@@ -337,24 +350,27 @@ app.post("/api/professionisti", (req, res) => {
   });
 });
 
+app.get("/api/professionisti", (req, res) => {
+  db.query("SELECT * FROM professionista", (err, results) => {
+    if (err) return res.status(500).json({ errore: "Errore recupero professionisti" });
+    res.json(results);
+  });
+});
+
 /* =========================
    GENERI
 ========================= */
 
-// Recuperare i dettagli di un genere e i suoi film tramite slug
 app.get("/api/generi/dettaglio/:slug", (req, res) => {
   const { slug } = req.params;
-
   const generateSlug = (testo) => testo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
-  // 1. Troviamo il genere
   db.query("SELECT * FROM genere", (err, generi) => {
     if (err) return res.status(500).json({ errore: "Errore recupero generi" });
 
     const genere = generi.find(g => generateSlug(g.nome_genere) === slug);
     if (!genere) return res.status(404).json({ errore: "Genere non trovato" });
 
-    // 2. Troviamo i film associati a questo genere
     const queryFilm = `
       SELECT o.id, o.titolo, o.poster, o.anno_uscita
       FROM appartiene a
@@ -378,33 +394,21 @@ app.get("/api/generi/dettaglio/:slug", (req, res) => {
    RICERCA GLOBALE
 ========================= */
 app.get("/api/ricerca/:query", (req, res) => {
-  // Aggiungiamo i % per far capire a SQL di cercare la parola ovunque nel testo
   const searchTerm = `%${req.params.query}%`;
-
   const queryOpere = "SELECT id, titolo, poster, anno_uscita FROM opera WHERE titolo LIKE ?";
   const queryProfessionisti = "SELECT id, nome, immagine FROM professionista WHERE nome LIKE ?";
 
-  // Facciamo le due query a cascata
   db.query(queryOpere, [searchTerm], (err, opereRes) => {
     if (err) return res.status(500).json({ errore: "Errore ricerca opere" });
 
     db.query(queryProfessionisti, [searchTerm], (err, profRes) => {
       if (err) return res.status(500).json({ errore: "Errore ricerca professionisti" });
 
-      // Restituiamo un unico oggetto JSON con entrambi i risultati
       res.json({
         opere: opereRes,
         professionisti: profRes
       });
     });
-  });
-});
-
-
-app.get("/api/professionisti", (req, res) => {
-  db.query("SELECT * FROM professionista", (err, results) => {
-    if (err) return res.status(500).json({ errore: "Errore recupero professionisti" });
-    res.json(results);
   });
 });
 
@@ -414,4 +418,66 @@ app.get("/api/professionisti", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server avviato su http://localhost:${PORT}`);
+});
+
+/* =========================
+   DIARIO / VISIONI
+========================= */
+
+// Recuperare il diario completo di un utente
+app.get("/api/diario/:id_utente", (req, res) => {
+  const { id_utente } = req.params;
+
+  // Facciamo una JOIN tra visione e opera per avere anche il titolo e il poster
+  const query = `
+    SELECT v.id_visione, v.data_visione, v.numero, o.id AS id_opera, o.titolo, o.poster 
+    FROM visione v
+    JOIN opera o ON v.id_opera = o.id
+    WHERE v.id_utente = ?
+    ORDER BY v.data_visione DESC
+  `;
+
+  db.query(query, [id_utente], (err, results) => {
+    if (err) {
+      console.error("Errore recupero diario:", err);
+      return res.status(500).json({ errore: "Errore nel recupero del diario" });
+    }
+    res.json(results);
+  });
+});
+
+// Aggiungere una nuova visione (Logga un film)
+app.post("/api/diario", (req, res) => {
+  const { id_utente, id_opera, data_visione } = req.body;
+
+  const query = `
+    INSERT INTO visione (id_utente, id_opera, data_visione) 
+    VALUES (?, ?, ?)
+  `;
+
+  db.query(query, [id_utente, id_opera, data_visione], (err, results) => {
+    if (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({ errore: "Hai già loggato questo film in questa data." });
+      }
+      console.error("Errore inserimento diario:", err);
+      return res.status(500).json({ errore: "Errore nel salvataggio" });
+    }
+    res.status(201).json({ messaggio: "Film aggiunto al diario!", id_visione: results.insertId });
+  });
+});
+
+// Eliminare una visione dal diario
+app.delete("/api/diario/:id_visione", (req, res) => {
+  const { id_visione } = req.params;
+
+  const query = "DELETE FROM visione WHERE id_visione = ?";
+
+  db.query(query, [id_visione], (err, results) => {
+    if (err) {
+      console.error("Errore eliminazione visione:", err);
+      return res.status(500).json({ errore: "Errore nell'eliminazione" });
+    }
+    res.json({ messaggio: "Visione rimossa dal diario" });
+  });
 });

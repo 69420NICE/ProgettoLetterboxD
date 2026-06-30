@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import RegistrazioneModal from "./RegistrazioneModal"; 
+import AccessoModal from "./AccessoModal"; // <-- Importato il nuovo modale
 import "./Navbar.css"; 
 
 const Navbar = () => {
   const [isRegistrazioneOpen, setIsRegistrazioneOpen] = useState(false);
+  const [isAccessoOpen, setIsAccessoOpen] = useState(false); // <-- Stato per il login
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
 
@@ -48,6 +50,7 @@ const Navbar = () => {
           
           <button 
             style={navTestoStyle}
+            onClick={() => setIsAccessoOpen(true)} // <-- Apre il modale di accesso
             onMouseOver={(e) => e.target.style.color = "white"}
             onMouseOut={(e) => e.target.style.color = "#8c9babc4"}
           >
@@ -118,6 +121,11 @@ const Navbar = () => {
       {/* Modale di registrazione */}
       {isRegistrazioneOpen && (
         <RegistrazioneModal onClose={() => setIsRegistrazioneOpen(false)} />
+      )}
+
+      {/* Modale di accesso */}
+      {isAccessoOpen && (
+        <AccessoModal onClose={() => setIsAccessoOpen(false)} />
       )}
     </>
   );
