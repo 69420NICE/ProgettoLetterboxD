@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const db = require("./db");
+const bcrypt = require("bcrypt");
 
 const app = express();
 
@@ -78,6 +79,57 @@ app.post("/api/opere", (req, res) => {
   );
 });
 
+// Aggiornare un'opera esistente (Metodo PUT)
+app.put("/api/opere/:id", (req, res) => {
+  const { id } = req.params;
+  const { titolo, trama, anno_uscita, durata_minuti, poster, tipo_opera } = req.body;
+
+  const query = `
+    UPDATE opera 
+    SET titolo = ?, trama = ?, anno_uscita = ?, durata_minuti = ?, poster = ?, tipo_opera = ?
+    WHERE id = ?
+  `;
+
+  db.query(
+    query,
+    [titolo, trama, anno_uscita, durata_minuti, poster, tipo_opera, id],
+    (err, results) => {
+      if (err) {
+        console.error("Errore aggiornamento opera:", err);
+        return res.status(500).json({ errore: "Errore nell'aggiornamento dell'opera" });
+      }
+      
+      if (results.affectedRows === 0) {
+        return res.status(404).json({ errore: "Opera non trovata" });
+      }
+
+      res.json({ messaggio: "Opera aggiornata correttamente" });
+    }
+  );
+});
+
+// Eliminare un'opera (Metodo DELETE)
+app.delete("/api/opere/:id", (req, res) => {
+  const { id } = req.params;
+
+  const query = "DELETE FROM opera WHERE id = ?";
+
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Errore eliminazione opera:", err);
+      // Nota: se l'opera è collegata a recensioni o attori, il database potrebbe bloccare 
+      // l'eliminazione a meno che non sia impostato "ON DELETE CASCADE".
+      return res.status(500).json({ errore: "Errore nell'eliminazione" });
+    }
+
+    if (results.affectedRows === 0) {
+      return res.status(404).json({ errore: "Opera non trovata" });
+    }
+
+    res.json({ messaggio: "Opera eliminata correttamente" });
+  });
+});
+
 // Recuperare i dettagli completi di un film (Inclusi Cast, Regista e Generi) tramite lo slug
 app.get("/api/opere/dettaglio/:slug", (req, res) => {
   const { slug } = req.params;
@@ -142,27 +194,41 @@ app.get("/api/utenti", (req, res) => {
   });
 });
 
-// Inserire nuovo utente
-app.post("/api/utenti", (req, res) => {
+// Inserire nuovo utente (Modificato per usare bcrypt)
+app.post("/api/utenti", async (req, res) => {
   const { username, email, password, ruolo } = req.body;
 
-  const query = `
-    INSERT INTO utente 
-    (username, email, password, ruolo)
-    VALUES (?, ?, ?, ?)
-  `;
+  try {
+    // 1. Criptiamo la password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-  db.query(query, [username, email, password, ruolo || "utente"], (err, results) => {
-    if (err) {
-      console.error("Errore inserimento utente:", err);
-      return res.status(500).json({ errore: "Errore nella registrazione dell'utente" });
-    }
+    // 2. Inseriamo i dati nel database
+    const query = `
+      INSERT INTO utente 
+      (username, email, password, ruolo)
+      VALUES (?, ?, ?, ?)
+    `;
 
-    res.status(201).json({
-      messaggio: "Utente registrato correttamente",
-      id: results.insertId,
+    db.query(query, [username, email, hashedPassword, ruolo || "utente"], (err, results) => {
+      if (err) {
+        // Gestione dell'errore se email o username esistono già
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(409).json({ errore: "Username o email già in uso." });
+        }
+        console.error("Errore inserimento utente:", err);
+        return res.status(500).json({ errore: "Errore nella registrazione dell'utente" });
+      }
+
+      res.status(201).json({
+        messaggio: "Utente registrato correttamente",
+        id: results.insertId,
+      });
     });
-  });
+  } catch (error) {
+    console.error("Errore durante la crittografia:", error);
+    res.status(500).json({ errore: "Errore interno del server" });
+  }
 });
 
 /* =========================
@@ -213,6 +279,63 @@ app.get("/api/professionisti/dettaglio/:slug", (req, res) => {
   });
 });
 
+// Aggiornare un professionista esistente (Metodo PUT)
+app.put("/api/professionisti/:id", (req, res) => {
+  const { id } = req.params;
+  const { nome, biografia, immagine } = req.body;
+
+  const query = `
+    UPDATE professionista 
+    SET nome = ?, biografia = ?, immagine = ?
+    WHERE id = ?
+  `;
+
+  db.query(query, [nome, biografia, immagine, id], (err, results) => {
+    if (err) {
+      console.error("Errore aggiornamento professionista:", err);
+      return res.status(500).json({ errore: "Errore nell'aggiornamento" });
+    }
+    if (results.affectedRows === 0) return res.status(404).json({ errore: "Professionista non trovato" });
+    res.json({ messaggio: "Professionista aggiornato correttamente" });
+  });
+});
+
+// Eliminare un professionista (Metodo DELETE)
+app.delete("/api/professionisti/:id", (req, res) => {
+  const { id } = req.params;
+
+  const query = "DELETE FROM professionista WHERE id = ?";
+
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Errore eliminazione professionista:", err);
+      return res.status(500).json({ errore: "Errore nell'eliminazione" });
+    }
+    res.json({ messaggio: "Professionista eliminato correttamente" });
+  });
+});
+
+
+// Aggiungere un nuovo professionista (Metodo POST)
+app.post("/api/professionisti", (req, res) => {
+  const { nome, biografia, immagine } = req.body;
+
+  // Assicurati che i nomi delle colonne corrispondano esattamente a quelle nel tuo database
+  const query = "INSERT INTO professionista (nome, biografia, immagine) VALUES (?, ?, ?)";
+
+  db.query(query, [nome, biografia, immagine], (err, results) => {
+    if (err) {
+      console.error("Errore inserimento professionista:", err);
+      return res.status(500).json({ errore: "Errore durante l'inserimento nel database" });
+    }
+    
+    // Restituiamo l'ID appena creato così il frontend può aggiornare la tabella senza ricaricare la pagina
+    res.status(201).json({ 
+      messaggio: "Professionista aggiunto correttamente", 
+      id: results.insertId 
+    });
+  });
+});
 
 /* =========================
    GENERI
@@ -251,6 +374,39 @@ app.get("/api/generi/dettaglio/:slug", (req, res) => {
   });
 });
 
+/* =========================
+   RICERCA GLOBALE
+========================= */
+app.get("/api/ricerca/:query", (req, res) => {
+  // Aggiungiamo i % per far capire a SQL di cercare la parola ovunque nel testo
+  const searchTerm = `%${req.params.query}%`;
+
+  const queryOpere = "SELECT id, titolo, poster, anno_uscita FROM opera WHERE titolo LIKE ?";
+  const queryProfessionisti = "SELECT id, nome, immagine FROM professionista WHERE nome LIKE ?";
+
+  // Facciamo le due query a cascata
+  db.query(queryOpere, [searchTerm], (err, opereRes) => {
+    if (err) return res.status(500).json({ errore: "Errore ricerca opere" });
+
+    db.query(queryProfessionisti, [searchTerm], (err, profRes) => {
+      if (err) return res.status(500).json({ errore: "Errore ricerca professionisti" });
+
+      // Restituiamo un unico oggetto JSON con entrambi i risultati
+      res.json({
+        opere: opereRes,
+        professionisti: profRes
+      });
+    });
+  });
+});
+
+
+app.get("/api/professionisti", (req, res) => {
+  db.query("SELECT * FROM professionista", (err, results) => {
+    if (err) return res.status(500).json({ errore: "Errore recupero professionisti" });
+    res.json(results);
+  });
+});
 
 /* =========================
    AVVIO SERVER

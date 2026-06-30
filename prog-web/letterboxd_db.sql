@@ -587,3 +587,17 @@ INSERT INTO follow (id_follower, id_seguito) VALUES
 
 INSERT INTO segnalazione (id, motivazione, stato, id_inviante, id_riguardo_recensione) VALUES 
 (1, 'Controllo spoiler richiesto da un altro utente.', 'presa_in_carico', 3, 1);
+
+-- 1. Aggiungiamo i registi mancanti nella tabella professionista
+INSERT INTO professionista (nome, biografia, immagine) VALUES
+('Yorgos Lanthimos', 'Regista greco, celebre per il suo stile surreale.', 'https://image.tmdb.org/t/p/w500/1XpmSFSveHqX1wJb3wXmF75Ehl2.jpg'),
+('Celine Song', 'Regista e drammaturga sudcoreana-canadese.', 'https://image.tmdb.org/t/p/w500/40C5o1dUBaT582tO9fR949pU7Xf.jpg'),
+('Bob Persichetti', 'Regista, sceneggiatore e animatore statunitense.', 'https://image.tmdb.org/t/p/w500/wAaEExbWjSIf20a7p1rI6Aof4pE.jpg'),
+('Francis Ford Coppola', 'Uno dei più grandi registi della storia del cinema.', 'https://image.tmdb.org/t/p/w500/mS09rGZ4mE70Y48I2Q2E8Qf50E1.jpg');
+
+-- 2. Li colleghiamo ai rispettivi film nella tabella lavora
+INSERT INTO lavora (id_professionista, id_opera, ruolo_lavorativo) VALUES
+((SELECT id FROM professionista WHERE nome = 'Yorgos Lanthimos'), 1, 'Regista'), -- Opera 1: Poor Things
+((SELECT id FROM professionista WHERE nome = 'Celine Song'), 2, 'Regista'), -- Opera 2: Past Lives
+((SELECT id FROM professionista WHERE nome = 'Bob Persichetti'), 5, 'Regista'), -- Opera 5: Spider-Man
+((SELECT id FROM professionista WHERE nome = 'Francis Ford Coppola'), 6, 'Regista'); -- Opera 6: Il Padrino
