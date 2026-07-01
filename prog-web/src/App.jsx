@@ -10,6 +10,8 @@ import RicercaPage from "./RicercaPage";
 import AdminOperePage from "./AdminOperePage";
 import AdminProfessionistiPage from "./AdminProfessionistiPage";
 import RecensionePage from "./RecensionePage"; // Inserisci questo import
+import AdminDashboardPage from "./AdminDashboardPage";
+import AdminGeneriPage from "./AdminGeneriPage";
 
 function App() {
   return (
@@ -25,8 +27,10 @@ function App() {
       {/* Rotta dinamica per la singola recensione */}
       <Route path="/recensione/:id" element={<RecensionePage />} />
 
+      <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
       <Route path="/admin/opere" element={<AdminOperePage />} />
       <Route path="/admin/professionisti" element={<AdminProfessionistiPage />} />
+      <Route path="/admin/generi" element={<AdminGeneriPage />} />
 
       {/* Catch-all per i film (Sempre in fondo) */}
       <Route path="/:slug" element={<FilmPage />} />

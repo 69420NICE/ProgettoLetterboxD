@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import NavbarGlobale from "./NavbarGlobale";
+import GestioneRelazioniModal from "./GestioneRelazioniModal";
 
 function AdminOperePage() {
   const [opere, setOpere] = useState([]);
+  const [generi, setGeneri] = useState([]); // Elenco dei generi caricati dal DB
   const [isLoading, setIsLoading] = useState(true);
   
   // Stati per la Modifica
@@ -12,22 +14,49 @@ function AdminOperePage() {
   // Stati per l'Aggiunta
   const [isCreating, setIsCreating] = useState(false);
   const [newFormData, setNewFormData] = useState({
-    titolo: "", trama: "", anno_uscita: "", durata_minuti: "", poster: "", tipo_opera: "film"
+    titolo: "", trama: "", anno_uscita: "", durata_minuti: "", poster: "", tipo_opera: "film", generiIds: [] // Inizializzato array id generi
   });
 
+  // Stati per il Modale delle Relazioni
+  const [isRelationsModalOpen, setIsRelationsModalOpen] = useState(false);
+  const [selectedOperaForRelations, setSelectedOperaForRelations] = useState({ id: null, titolo: "" });
+
   useEffect(() => {
-    fetchOpere();
+    caricaDatiIniziali();
   }, []);
 
-  const fetchOpere = async () => {
+  // Caricamento simultaneo di Opere e Generi dal backend
+  const caricaDatiIniziali = async () => {
     try {
-      const response = await fetch("http://localhost:3001/api/opere");
-      const data = await response.json();
-      setOpere(data);
+      setIsLoading(true);
+      const [resOpere, resGeneri] = await Promise.all([
+        fetch("http://localhost:3001/api/opere"),
+        fetch("http://localhost:3001/api/generi")
+      ]);
+      
+      const dataOpere = await resOpere.json();
+      const dataGeneri = await resGeneri.json();
+      
+      setOpere(dataOpere);
+      setGeneri(dataGeneri);
       setIsLoading(false);
     } catch (error) {
-      console.error("Errore nel caricamento delle opere:", error);
+      console.error("Errore nel caricamento dei dati:", error);
+      setIsLoading(false);
     }
+  };
+
+  // Gestore per accendere/spegnere i generi selezionati nelle checkbox
+  const handleCheckboxChange = (idGenere, isEdit = false) => {
+    const formData = isEdit ? editFormData : newFormData;
+    const setFormData = isEdit ? setEditFormData : setNewFormData;
+    const attualiIds = formData.generiIds || [];
+
+    const nuoviIds = attualiIds.includes(idGenere)
+      ? attualiIds.filter(id => id !== idGenere)
+      : [...attualiIds, idGenere];
+
+    setFormData({ ...formData, generiIds: nuoviIds });
   };
 
   /* ================= AGGIUNTA ================= */
@@ -46,9 +75,9 @@ function AdminOperePage() {
       });
 
       if (response.ok) {
-        fetchOpere(); 
+        caricaDatiIniziali(); // Rinfresca tutto l'elenco
         setIsCreating(false); 
-        setNewFormData({ titolo: "", trama: "", anno_uscita: "", durata_minuti: "", poster: "", tipo_opera: "film" });
+        setNewFormData({ titolo: "", trama: "", anno_uscita: "", durata_minuti: "", poster: "", tipo_opera: "film", generiIds: [] });
       } else {
         alert("Errore durante la creazione.");
       }
@@ -96,8 +125,8 @@ function AdminOperePage() {
       });
 
       if (response.ok) {
-        setOpere(opere.map((opera) => opera.id === editingId ? editFormData : opera));
         setEditingId(null);
+        caricaDatiIniziali(); // Rinfreschiamo per assicurarci l'allineamento dei generi modificati
       } else {
         alert("Errore durante il salvataggio.");
       }
@@ -112,6 +141,7 @@ function AdminOperePage() {
   const tdStyle = { padding: "12px", borderBottom: "1px solid #2c3440", verticalAlign: "middle" };
   const inputStyle = { width: "100%", padding: "6px", background: "#2c3440", color: "white", border: "1px solid #445566", borderRadius: "3px" };
   const btnStyle = { padding: "6px 12px", borderRadius: "3px", cursor: "pointer", border: "none", color: "white", fontWeight: "bold", whiteSpace: "nowrap" };
+  const gridGeneriStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: "8px", background: "#14181c", padding: "10px", borderRadius: "4px", border: "1px solid #445566", marginTop: "5px", width: "100%" };
 
   if (isLoading) return <div style={{ color: "white", padding: "100px", textAlign: "center", background: "#14181c", minHeight: "100vh" }}>Caricamento pannello admin...</div>;
 
@@ -151,6 +181,24 @@ function AdminOperePage() {
               </select>
             </div>
             <div style={{ flex: "1 1 100%" }}><label style={{ fontSize:"0.8rem", color:"#8c9babc4" }}>URL Poster</label><input type="text" name="poster" value={newFormData.poster} onChange={handleCreateChange} style={inputStyle} required /></div>
+            
+            {/* SELEZIONE DEI GENERI CON CHECKBOX - INSERIMENTO */}
+            <div style={{ flex: "1 1 100%" }}>
+              <label style={{ fontSize:"0.8rem", color:"#8c9babc4" }}>Generi Associati</label>
+              <div style={gridGeneriStyle}>
+                {generi.map((g) => (
+                  <label key={g.id} style={{ display: "flex", alignItems: "center", gap: "6px", color: "white", fontSize: "0.85rem", cursor: "pointer" }}>
+                    <input 
+                      type="checkbox" 
+                      checked={newFormData.generiIds.includes(g.id)} 
+                      onChange={() => handleCheckboxChange(g.id, false)} 
+                    />
+                    {g.nome_genere}
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <div style={{ flex: "1 1 100%" }}><label style={{ fontSize:"0.8rem", color:"#8c9babc4" }}>Trama</label><textarea name="trama" value={newFormData.trama} onChange={handleCreateChange} style={{ ...inputStyle, minHeight: "80px" }} required /></div>
             
             <button type="submit" style={{ ...btnStyle, background: "#00b020", marginTop: "10px", width: "100%" }}>Salva nel Database</button>
@@ -168,6 +216,7 @@ function AdminOperePage() {
                 <th style={thStyle}>Anno</th>
                 <th style={thStyle}>Durata</th>
                 <th style={thStyle}>Tipo</th>
+                <th style={thStyle}>Generi</th>
                 <th style={thStyle}>Trama</th>
                 <th style={thStyle}>Azioni</th>
               </tr>
@@ -179,7 +228,7 @@ function AdminOperePage() {
                   
                   {editingId === opera.id ? (
                     <>
-                      {/* Campi in modalità Modifica */}
+                      {/* MODALITÀ MODIFICA INLINE */}
                       <td style={tdStyle}><input type="text" name="poster" value={editFormData.poster || ""} onChange={handleEditFormChange} placeholder="URL Immagine" style={inputStyle} /></td>
                       <td style={tdStyle}><input type="text" name="titolo" value={editFormData.titolo || ""} onChange={handleEditFormChange} style={inputStyle} /></td>
                       <td style={tdStyle}><input type="number" name="anno_uscita" value={editFormData.anno_uscita || ""} onChange={handleEditFormChange} style={{...inputStyle, width: "70px"}} /></td>
@@ -189,15 +238,34 @@ function AdminOperePage() {
                           <option value="film">Film</option><option value="serie">Serie</option>
                         </select>
                       </td>
-                      <td style={tdStyle}><textarea name="trama" value={editFormData.trama || ""} onChange={handleEditFormChange} style={{ ...inputStyle, minHeight: "40px", resize: "vertical" }} /></td>
-                      <td style={{ ...tdStyle, display: "flex", gap: "5px", flexDirection: "column" }}>
-                        <button onClick={handleSaveClick} style={{ ...btnStyle, background: "#00b020" }}>Salva</button>
-                        <button onClick={() => setEditingId(null)} style={{ ...btnStyle, background: "#445566" }}>Annulla</button>
+                      
+                      {/* SELEZIONE DEI GENERI CON CHECKBOX - MODIFICA */}
+                      <td style={tdStyle}>
+                        <div style={{ ...gridGeneriStyle, minWidth: "160px", maxHeight: "100px", overflowY: "auto", padding: "5px" }}>
+                          {generi.map((g) => (
+                            <label key={g.id} style={{ display: "flex", alignItems: "center", gap: "4px", color: "white", fontSize: "0.75rem", cursor: "pointer" }}>
+                              <input 
+                                type="checkbox" 
+                                checked={editFormData.generiIds?.includes(g.id)} 
+                                onChange={() => handleCheckboxChange(g.id, true)} 
+                              />
+                              {g.nome_genere}
+                            </label>
+                          ))}
+                        </div>
+                      </td>
+
+                      <td style={tdStyle}><textarea name="trama" value={editFormData.trama || ""} onChange={handleEditFormChange} style={{ ...inputStyle, minHeight: "60px", resize: "vertical" }} /></td>
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", gap: "5px", flexDirection: "column" }}>
+                          <button onClick={handleSaveClick} style={{ ...btnStyle, background: "#00b020" }}>Salva</button>
+                          <button onClick={() => setEditingId(null)} style={{ ...btnStyle, background: "#445566" }}>Annulla</button>
+                        </div>
                       </td>
                     </>
                   ) : (
                     <>
-                      {/* Visualizzazione Normale */}
+                      {/* VISUALIZZAZIONE NORMALE */}
                       <td style={tdStyle}>
                         {opera.poster ? <img src={opera.poster} alt="Poster" style={{ width: "40px", height: "60px", objectFit: "cover", borderRadius: "3px" }} /> : "N/A"}
                       </td>
@@ -205,12 +273,39 @@ function AdminOperePage() {
                       <td style={tdStyle}>{opera.anno_uscita}</td>
                       <td style={tdStyle}>{opera.durata_minuti} m</td>
                       <td style={{ ...tdStyle, textTransform: "capitalize" }}>{opera.tipo_opera}</td>
+                      
+                      {/* ELENCO DEI TAG DEI GENERI ASSOCIATI ALL'OPERA */}
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", maxWidth: "180px" }}>
+                          {generi.filter(g => opera.generiIds?.includes(g.id)).map(g => (
+                            <span key={g.id} style={{ background: "#24303c", color: "#9ab", padding: "2px 6px", borderRadius: "3px", fontSize: "0.7rem", fontWeight: "bold" }}>
+                              {g.nome_genere}
+                            </span>
+                          ))}
+                          {(!opera.generiIds || opera.generiIds.length === 0) && (
+                            <span style={{ color: "#445566", fontStyle: "italic" }}>Nessuno</span>
+                          )}
+                        </div>
+                      </td>
+
                       <td style={tdStyle} title={opera.trama}>
                         {opera.trama ? (opera.trama.length > 40 ? opera.trama.substring(0, 40) + "..." : opera.trama) : "-"}
                       </td>
                       <td style={tdStyle}>
                         <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                           <button onClick={() => handleEditClick(opera)} style={{ ...btnStyle, background: "#40bcf4" }}>Modifica</button>
+                          
+                          {/* PULSANTE GESTIONE RELAZIONI CAST/REGIA AGGIUNTO */}
+                          <button 
+                            onClick={() => {
+                              setSelectedOperaForRelations({ id: opera.id, titolo: opera.titolo });
+                              setIsRelationsModalOpen(true);
+                            }} 
+                            style={{ ...btnStyle, background: "#e9a115" }}
+                          >
+                            Cast / Regia
+                          </button>
+
                           <button onClick={() => handleDeleteClick(opera.id)} style={{ ...btnStyle, background: "#ff4040" }}>Elimina</button>
                         </div>
                       </td>
@@ -222,6 +317,14 @@ function AdminOperePage() {
           </table>
         </div>
       </main>
+
+      {/* RENDERIZZAZIONE DEL MODALE DELLE RELAZIONI */}
+      <GestioneRelazioniModal 
+        isOpen={isRelationsModalOpen}
+        onClose={() => setIsRelationsModalOpen(false)}
+        operaId={selectedOperaForRelations.id}
+        operaTitolo={selectedOperaForRelations.titolo}
+      />
     </div>
   );
 }

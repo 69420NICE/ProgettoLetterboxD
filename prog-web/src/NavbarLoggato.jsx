@@ -6,15 +6,16 @@ const NavbarLoggato = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [username, setUsername] = useState("Profilo");
+  const [ruolo, setRuolo] = useState("utente"); // Stato per tracciare il ruolo dell'utente
   const navigate = useNavigate();
 
-  // Recupera l'username per il tasto del profilo
   useEffect(() => {
     const userInStorage = localStorage.getItem("utente");
     if (userInStorage) {
       try {
         const userData = JSON.parse(userInStorage);
         setUsername(userData.username);
+        setRuolo(userData.ruolo); // Recuperiamo il ruolo (es: 'amministratore')
       } catch (e) {
         console.error("Errore parse utente:", e);
       }
@@ -72,6 +73,21 @@ const NavbarLoggato = () => {
 
       <nav className="nav-links" style={{ display: "flex", alignItems: "center", gap: "20px" }}>
         
+        {/* =============== VOCE AGGIUNTA SOLO PER AMMINISTRATORI =============== */}
+{ruolo === "amministratore" && (
+    <Link 
+      to="/admin/dashboard" 
+      style={navTestoStyle}
+      onMouseOver={(e) => e.currentTarget.firstChild.style.color = "white"}
+      onMouseOut={(e) => e.currentTarget.firstChild.style.color = "#8c9babc4"}
+    >
+      <span style={{ background: "#4a1919", color: "#ff4040", padding: "2px 6px", borderRadius: "3px", fontSize: "0.7rem", fontWeight: "bold" }}>
+        ADMIN AREA
+      </span>
+    </Link>
+  )}
+        {/* ====================================================================== */}
+
         {/* Link Globali */}
         <Link to="/catalogo" style={navTestoStyle} onMouseOver={(e) => e.target.style.color = "white"} onMouseOut={(e) => e.target.style.color = "#8c9babc4"}>Film</Link>
         <Link to="/liste" style={navTestoStyle} onMouseOver={(e) => e.target.style.color = "white"} onMouseOut={(e) => e.target.style.color = "#8c9babc4"}>Liste</Link>
@@ -86,7 +102,6 @@ const NavbarLoggato = () => {
             {username} ▼
           </button>
 
-          {/* Il Dropdown che si apre al click */}
           {isMenuOpen && (
             <div style={{ 
               position: "absolute", top: "150%", right: 0, background: "#2c3440", 
@@ -110,22 +125,28 @@ const NavbarLoggato = () => {
           )}
         </div>
 
-        {/* Barra di ricerca */}
-        <form onSubmit={handleSearch} style={{ marginLeft: "10px" }}>
-          <input 
-            type="text" 
-            placeholder="Cerca film, attori, utenti..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              padding: "6px 12px", borderRadius: "20px", border: "1px solid #445566",
-              background: "#14181c", color: "white", outline: "none", fontSize: "0.85rem",
-              width: "200px", transition: "border-color 0.2s ease"
-            }}
-            onFocus={(e) => e.target.style.borderColor = "white"}
-            onBlur={(e) => e.target.style.borderColor = "#445566"}
-          />
-        </form>
+          {/* Barra di ricerca in fondo alla fila */}
+          <form onSubmit={handleSearch} style={{ marginLeft: "10px" }}>
+            <input 
+              type="text" 
+              placeholder="Cerca..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "20px",
+                border: "1px solid #445566",
+                background: "#2c3440",
+                color: "white",
+                outline: "none",
+                fontSize: "0.85rem",
+                width: "180px",
+                transition: "border-color 0.2s ease"
+              }}
+              onFocus={(e) => e.target.style.borderColor = "white"}
+              onBlur={(e) => e.target.style.borderColor = "#445566"}
+            />
+          </form>
       </nav>
     </header>
   );
