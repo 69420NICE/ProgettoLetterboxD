@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import Navbar from "./Navbar";
+import NavbarGlobale from "./NavbarGlobale";
 
 function AdminOperePage() {
   const [opere, setOpere] = useState([]);
@@ -117,7 +117,7 @@ function AdminOperePage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#14181c", color: "white" }}>
-      <Navbar />
+      <NavbarGlobale />
 
       <main style={{ paddingTop: "100px", maxWidth: "1200px", margin: "0 auto", padding: "100px 20px 50px 20px" }}>
         

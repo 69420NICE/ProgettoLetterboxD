@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import Navbar from "./Navbar";
+import NavbarGlobale from "./NavbarGlobale";
 
 function AdminProfessionistiPage() {
   const [professionisti, setProfessionisti] = useState([]);
@@ -81,7 +81,7 @@ function AdminProfessionistiPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#14181c", color: "white" }}>
-      <Navbar />
+      <NavbarGlobale />
       <main style={{ paddingTop: "100px", maxWidth: "1200px", margin: "0 auto", padding: "100px 20px" }}>
         
         {/* Intestazione con Admin Area */}

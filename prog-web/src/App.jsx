@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import LandingPage from "./LandingPage";
 import Dashboard from "./Dashboard";
-import Catalogo from "./Catalogo";
+import Catalogo from "./catalogo";
 import Diario from "./Diario";
 import FilmPage from "./FilmPage";
 import ProfessionistaPage from "./ProfessionistaPage";

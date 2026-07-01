@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import Navbar from "./Navbar";
+import NavbarGlobale from "./NavbarGlobale";
 import "./LandingPage.css"; 
 
 // Funzione helper per convertire il titolo del film in url
@@ -42,7 +42,7 @@ function ProfessionistaPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#14181c", color: "#9ab" }}>
-      <Navbar />
+      <NavbarGlobale />
 
       <main style={{ paddingTop: "100px", maxWidth: "1000px", margin: "0 auto", paddingLeft: "40px", paddingRight: "40px" }}>
         

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import NavbarLoggato from "./NavbarLoggato";
+import NavbarGlobale from "./NavbarGlobale";
 
 // Funzione helper per gli slug dei link
 const generateSlug = (titolo) => {
@@ -62,7 +62,7 @@ function Diario() {
 
   return (
     <div style={{ background: "#14181c", minHeight: "100vh", color: "white" }}>
-      <NavbarLoggato />
+      <NavbarGlobale />
 
       <main style={{ maxWidth: "800px", margin: "40px auto", padding: "0 20px" }}>
         <h1 style={{ borderBottom: "1px solid #445566", paddingBottom: "10px", marginBottom: "30px" }}>

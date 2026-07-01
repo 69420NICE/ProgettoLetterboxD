@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import Navbar from "./Navbar"; 
+import NavbarGlobale from "./NavbarGlobale";
 import "./LandingPage.css"; 
 
 const generateSlug = (titolo) => {
@@ -39,7 +39,7 @@ function Catalogo() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#14181c", color: "white" }}>
-      <Navbar />
+      <NavbarGlobale />
 
       {/* Regola di formattazione: paddingTop a 100px per compensare la Navbar fissa */}
       <main style={{ paddingTop: "100px", paddingRight: "40px", paddingBottom: "40px", paddingLeft: "40px", maxWidth: "1000px", margin: "0 auto" }}>

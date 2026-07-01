@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 // 1. IMPORTIAMO LA NAVBAR CORRETTA (quella senza Accedi/Registrati)
-import NavbarLoggato from "./NavbarLoggato"; 
+import NavbarGlobale from "./NavbarGlobale";
 import "./LandingPage.css"; 
 
 const generateSlug = (titolo) => {
@@ -56,7 +56,7 @@ function Dashboard() {
     <div className="landing-page">
       
       {/* 2. USIAMO LA NAVBAR LOGGATA QUI */}
-      <NavbarLoggato />
+      <NavbarGlobale />
 
       <main>
         <section className="hero">

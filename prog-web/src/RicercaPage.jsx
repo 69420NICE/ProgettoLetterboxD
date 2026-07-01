@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import Navbar from "./Navbar";
+import NavbarGlobale from "./NavbarGlobale";
 import "./LandingPage.css"; 
 
 const generateSlug = (testo) => {
@@ -44,7 +44,7 @@ function RicercaPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#14181c", color: "#9ab" }}>
-      <Navbar />
+      <NavbarGlobale />
 
       <main style={{ paddingTop: "100px", maxWidth: "1000px", margin: "0 auto", paddingLeft: "40px", paddingRight: "40px", paddingBottom: "50px" }}>
         

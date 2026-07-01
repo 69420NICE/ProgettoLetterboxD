@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import Navbar from "./Navbar";
+import NavbarGlobale from "./NavbarGlobale";
 import RegistrazioneModal from "./RegistrazioneModal"; // <-- 1. Importiamo il modale
 import "./LandingPage.css";
 
@@ -44,7 +44,7 @@ function LandingPage() {
 
   return (
     <div className="landing-page">
-      <Navbar />
+      <NavbarGlobale />
 
       <main>
         <section className="hero">

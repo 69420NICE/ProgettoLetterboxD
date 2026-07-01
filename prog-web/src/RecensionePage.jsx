@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import Navbar from "./Navbar";
+import NavbarGlobale from "./NavbarGlobale";
 
 const generateSlug = (testo) => {
     if (!testo) return "";
@@ -51,7 +51,7 @@ function RecensionePage() {
 
     return (
         <div style={{ minHeight: "100vh", background: "#14181c", color: "#9ab" }}>
-            <Navbar />
+            <NavbarGlobale />
 
             <div style={{
                 position: "absolute", top: 0, left: 0, right: 0, height: "400px",
