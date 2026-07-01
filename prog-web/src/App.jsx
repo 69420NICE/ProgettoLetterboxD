@@ -12,6 +12,9 @@ import AdminProfessionistiPage from "./AdminProfessionistiPage";
 import RecensionePage from "./RecensionePage"; // Inserisci questo import
 import AdminDashboardPage from "./AdminDashboardPage";
 import AdminGeneriPage from "./AdminGeneriPage";
+import Watchlist from "./Watchlist";
+import LeMieListe from "./LeMieListe";
+import DettaglioLista from "./DettaglioLista";
 
 function App() {
   return (
@@ -23,6 +26,9 @@ function App() {
       <Route path="/genere/:slug" element={<GenerePage />} />
       <Route path="/ricerca/:query" element={<RicercaPage />} />
       <Route path="/attore/:slug" element={<ProfessionistaPage />} />
+      <Route path="/profilo/watchlist" element={<Watchlist />} />
+      <Route path="/profilo/liste" element={<LeMieListe />} />
+      <Route path="/lista/:id_lista" element={<DettaglioLista />} />
 
       {/* Rotta dinamica per la singola recensione */}
       <Route path="/recensione/:id" element={<RecensionePage />} />

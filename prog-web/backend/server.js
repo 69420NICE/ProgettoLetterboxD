@@ -598,3 +598,114 @@ app.put("/api/opere/:id/cast", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server avviato su http://localhost:${PORT}`);
 });
+
+// Modifica una visione esistente
+app.put("/api/diario/:id_visione", (req, res) => {
+  const { id_visione } = req.params;
+  const { data_visione } = req.body;
+
+  const query = "UPDATE visione SET data_visione = ? WHERE id_visione = ?";
+  db.query(query, [data_visione, id_visione], (err, results) => {
+    if (err) return res.status(500).json({ errore: "Errore modifica" });
+    res.json({ messaggio: "Diario aggiornato!" });
+  });
+});
+
+// Aggiungere un film alla Watchlist
+app.post("/api/watchlist", (req, res) => {
+  const { id_utente, id_opera } = req.body;
+
+  const query = "INSERT INTO watchlist (id_utente, id_opera) VALUES (?, ?)";
+
+  db.query(query, [id_utente, id_opera], (err, results) => {
+    if (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({ errore: "Il film è già nella tua watchlist." });
+      }
+      console.error("Errore aggiunta watchlist:", err);
+      return res.status(500).json({ errore: "Errore interno del server" });
+    }
+    res.status(201).json({ messaggio: "Film aggiunto alla watchlist!" });
+  });
+});
+
+// Recuperare la watchlist di un utente
+app.get("/api/watchlist/:id_utente", (req, res) => {
+  const { id_utente } = req.params;
+
+  // JOIN tra watchlist e opera per avere titolo e poster
+  const query = `
+    SELECT w.data_aggiunta, o.id AS id_opera, o.titolo, o.poster, o.anno_uscita
+    FROM watchlist w
+    JOIN opera o ON w.id_opera = o.id
+    WHERE w.id_utente = ?
+    ORDER BY w.data_aggiunta DESC
+  `;
+
+  db.query(query, [id_utente], (err, results) => {
+    if (err) {
+      console.error("Errore recupero watchlist:", err);
+      return res.status(500).json({ errore: "Errore nel recupero della watchlist" });
+    }
+    res.json(results);
+  });
+});
+
+// Rimuovere un film dalla watchlist
+app.delete("/api/watchlist/:id_utente/:id_opera", (req, res) => {
+  const { id_utente, id_opera } = req.params;
+
+  const query = "DELETE FROM watchlist WHERE id_utente = ? AND id_opera = ?";
+
+  db.query(query, [id_utente, id_opera], (err, results) => {
+    if (err) {
+      console.error("Errore eliminazione watchlist:", err);
+      return res.status(500).json({ errore: "Errore durante la rimozione" });
+    }
+    res.json({ messaggio: "Film rimosso dalla watchlist" });
+  });
+});
+
+/* =========================
+   LISTE
+========================= */
+
+// 1. Recupera tutte le liste create da un utente specifico
+app.get("/api/liste/utente/:id_utente", (req, res) => {
+  const { id_utente } = req.params;
+  const query = "SELECT * FROM lista WHERE id_utente = ? ORDER BY data_pubblicazione DESC";
+  
+  db.query(query, [id_utente], (err, results) => {
+    if (err) return res.status(500).json({ errore: "Errore nel recupero liste" });
+    res.json(results);
+  });
+});
+
+// 2. Crea una nuova lista (serve per la pagina gestione liste che faremo dopo)
+app.post("/api/liste", (req, res) => {
+  const { titolo, descrizione, pubblica, id_utente } = req.body;
+  const query = "INSERT INTO lista (titolo, descrizione, pubblica, id_utente) VALUES (?, ?, ?, ?)";
+  
+  db.query(query, [titolo, descrizione, pubblica !== false, id_utente], (err, results) => {
+    if (err) return res.status(500).json({ errore: "Errore creazione lista" });
+    res.status(201).json({ messaggio: "Lista creata", id_lista: results.insertId });
+  });
+});
+
+// 3. Aggiunge un film a una lista esistente
+app.post("/api/liste/:id_lista/aggiungi", (req, res) => {
+  const { id_lista } = req.params;
+  const { id_opera } = req.body;
+
+  const query = "INSERT INTO include_lista_opera (id_lista, id_opera) VALUES (?, ?)";
+  
+  db.query(query, [id_lista, id_opera], (err, results) => {
+    if (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({ errore: "Film già presente in questa lista." });
+      }
+      return res.status(500).json({ errore: "Errore salvataggio nella lista" });
+    }
+    res.status(201).json({ messaggio: "Aggiunto alla lista!" });
+  });
+});

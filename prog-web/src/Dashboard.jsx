@@ -94,7 +94,7 @@ function Dashboard() {
               <Link to="/catalogo" className="hero-button" style={{ textDecoration: 'none' }}>
                 Esplora Film
               </Link>
-              <Link to="/profilo" className="hero-button" style={{ textDecoration: 'none', background: '#445566' }}>
+              <Link to="/diario" className="hero-button" style={{ textDecoration: 'none', background: '#445566' }}>
                 Il Mio Diario
               </Link>
             </div>
