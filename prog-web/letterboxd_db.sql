@@ -445,3 +445,7 @@ INSERT INTO `like_azione` (`id_utente`, `id_target`, `tipo_target`) VALUES (3, 5
 -- Like alla Recensione ID 6 (Il Padrino - Utente 2) -> Totale: 2 Like
 INSERT INTO `like_azione` (`id_utente`, `id_target`, `tipo_target`) VALUES (1, 6, 'recensione');
 INSERT INTO `like_azione` (`id_utente`, `id_target`, `tipo_target`) VALUES (3, 6, 'recensione');
+
+UPDATE utente 
+SET ruolo = 'amministratore' 
+WHERE username = 'lela';
