@@ -1,14 +1,15 @@
 import { Routes, Route } from "react-router-dom";
 import LandingPage from "./LandingPage";
-import Dashboard from "./Dashboard"; 
+import Dashboard from "./Dashboard";
 import Catalogo from "./Catalogo";
-import Diario from "./Diario"; // <-- 1. IMPORTA IL DIARIO QUI
+import Diario from "./Diario";
 import FilmPage from "./FilmPage";
 import ProfessionistaPage from "./ProfessionistaPage";
 import GenerePage from "./GenerePage";
 import RicercaPage from "./RicercaPage";
 import AdminOperePage from "./AdminOperePage";
 import AdminProfessionistiPage from "./AdminProfessionistiPage";
+import RecensionePage from "./RecensionePage"; // Inserisci questo import
 
 function App() {
   return (
@@ -16,23 +17,18 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/catalogo" element={<Catalogo />} />
-      
-      {/* 2. AGGIUNGI LA ROTTA DEL DIARIO QUI */}
       <Route path="/diario" element={<Diario />} />
-      
-      {/* Rotta per i generi */}
       <Route path="/genere/:slug" element={<GenerePage />} />
-
-      {/* Rotta per i risultati di ricerca */}
       <Route path="/ricerca/:query" element={<RicercaPage />} />
-      
-      {/* Rotta specifica per il cast */}
       <Route path="/attore/:slug" element={<ProfessionistaPage />} />
+
+      {/* Rotta dinamica per la singola recensione */}
+      <Route path="/recensione/:id" element={<RecensionePage />} />
 
       <Route path="/admin/opere" element={<AdminOperePage />} />
       <Route path="/admin/professionisti" element={<AdminProfessionistiPage />} />
-      
-      {/* CATCH-ALL per i film (deve stare SEMPRE alla fine) */}
+
+      {/* Catch-all per i film (Sempre in fondo) */}
       <Route path="/:slug" element={<FilmPage />} />
     </Routes>
   );

@@ -98,7 +98,7 @@ app.put("/api/opere/:id", (req, res) => {
         console.error("Errore aggiornamento opera:", err);
         return res.status(500).json({ errore: "Errore nell'aggiornamento dell'opera" });
       }
-      
+
       if (results.affectedRows === 0) {
         return res.status(404).json({ errore: "Opera non trovata" });
       }
@@ -216,12 +216,11 @@ app.post("/api/utenti", async (req, res) => {
   }
 });
 
-// NUOVA ROTTA: Login Utente
+// Login Utente
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // 1. Cerca l'utente per email
     const query = "SELECT * FROM utente WHERE email = ?";
     db.query(query, [email], async (err, results) => {
       if (err) {
@@ -229,21 +228,17 @@ app.post("/api/login", async (req, res) => {
         return res.status(500).json({ errore: "Errore interno del server" });
       }
 
-      // Se non trova nessuno con quell'email
       if (results.length === 0) {
         return res.status(401).json({ errore: "Credenziali non valide" });
       }
 
       const utenteTrovato = results[0];
-
-      // 2. Confronta la password inviata con l'hash salvato nel DB usando bcrypt
       const passwordCorretta = await bcrypt.compare(password, utenteTrovato.password);
 
       if (!passwordCorretta) {
         return res.status(401).json({ errore: "Credenziali non valide" });
       }
 
-      // 3. Login riuscito! Non mandiamo la password indietro al client per sicurezza
       res.status(200).json({
         messaggio: "Accesso effettuato con successo",
         utente: {
@@ -292,7 +287,7 @@ app.get("/api/professionisti/dettaglio/:slug", (req, res) => {
 
     db.query(queryFilmografia, [professionista.id, professionista.id], (err, filmRes) => {
       if (err) return res.status(500).json({ errore: "Errore recupero filmografia" });
-      
+
       res.json({
         ...professionista,
         filmografia: filmRes
@@ -343,9 +338,9 @@ app.post("/api/professionisti", (req, res) => {
       console.error("Errore inserimento professionista:", err);
       return res.status(500).json({ errore: "Errore durante l'inserimento nel database" });
     }
-    res.status(201).json({ 
-      messaggio: "Professionista aggiunto correttamente", 
-      id: results.insertId 
+    res.status(201).json({
+      messaggio: "Professionista aggiunto correttamente",
+      id: results.insertId
     });
   });
 });
@@ -381,7 +376,7 @@ app.get("/api/generi/dettaglio/:slug", (req, res) => {
 
     db.query(queryFilm, [genere.id], (err, filmRes) => {
       if (err) return res.status(500).json({ errore: "Errore recupero film del genere" });
-      
+
       res.json({
         ...genere,
         opere: filmRes
@@ -413,22 +408,11 @@ app.get("/api/ricerca/:query", (req, res) => {
 });
 
 /* =========================
-   AVVIO SERVER
-========================= */
-
-app.listen(PORT, () => {
-  console.log(`Server avviato su http://localhost:${PORT}`);
-});
-
-/* =========================
    DIARIO / VISIONI
 ========================= */
 
-// Recuperare il diario completo di un utente
 app.get("/api/diario/:id_utente", (req, res) => {
   const { id_utente } = req.params;
-
-  // Facciamo una JOIN tra visione e opera per avere anche il titolo e il poster
   const query = `
     SELECT v.id_visione, v.data_visione, v.numero, o.id AS id_opera, o.titolo, o.poster 
     FROM visione v
@@ -446,14 +430,9 @@ app.get("/api/diario/:id_utente", (req, res) => {
   });
 });
 
-// Aggiungere una nuova visione (Logga un film)
 app.post("/api/diario", (req, res) => {
   const { id_utente, id_opera, data_visione } = req.body;
-
-  const query = `
-    INSERT INTO visione (id_utente, id_opera, data_visione) 
-    VALUES (?, ?, ?)
-  `;
+  const query = `INSERT INTO visione (id_utente, id_opera, data_visione) VALUES (?, ?, ?)`;
 
   db.query(query, [id_utente, id_opera, data_visione], (err, results) => {
     if (err) {
@@ -467,10 +446,8 @@ app.post("/api/diario", (req, res) => {
   });
 });
 
-// Eliminare una visione dal diario
 app.delete("/api/diario/:id_visione", (req, res) => {
   const { id_visione } = req.params;
-
   const query = "DELETE FROM visione WHERE id_visione = ?";
 
   db.query(query, [id_visione], (err, results) => {
@@ -480,4 +457,223 @@ app.delete("/api/diario/:id_visione", (req, res) => {
     }
     res.json({ messaggio: "Visione rimossa dal diario" });
   });
+});
+
+/* =========================================================
+   NUOVE ROTTE DI CONTROLLO: RECENSIONI, VOTI E LIKE
+========================================================= */
+
+// 1. Legge tutte le recensioni di un film includendo stelle (voto) e contatore dei like
+app.get("/api/opere/recensioni/:slug", (req, res) => {
+  const { slug } = req.params;
+
+  db.query("SELECT * FROM opera", (err, opere) => {
+    if (err) return res.status(500).json({ errore: "Errore nel caricamento del film" });
+
+    const generateSlug = (titolo) => titolo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const opera = opere.find(o => generateSlug(o.titolo) === slug);
+
+    if (!opera) return res.status(404).json({ errore: "Film non trovato" });
+
+    const queryRecensioni = `
+      SELECT 
+        r.id, 
+        r.testo, 
+        r.spoiler, 
+        r.data_creazione, 
+        u.username,
+        v.valore_stelle,
+        IFNULL(la.num_likes, 0) AS numero_like
+      FROM recensione r
+      JOIN utente u ON r.id_utente = u.id
+      LEFT JOIN voto v ON r.id_utente = v.id_utente AND r.id_opera = v.id_opera
+      LEFT JOIN (
+        SELECT id_target, COUNT(*) AS num_likes 
+        FROM like_azione 
+        WHERE tipo_target = 'recensione' 
+        GROUP BY id_target
+      ) la ON r.id = la.id_target
+      WHERE r.id_opera = ?
+      ORDER BY r.data_creazione DESC
+    `;
+
+    db.query(queryRecensioni, [opera.id], (err, recensioniData) => {
+      if (err) {
+        console.error("Errore SQL recensioni:", err);
+        return res.status(500).json({ errore: "Errore nel recupero del feed recensioni" });
+      }
+      res.json(recensioniData);
+    });
+  });
+});
+
+// 2. Legge una singola recensione isolata (con poster del film, stelle collegate dell'autore e like)
+app.get("/api/recensioni/:id", (req, res) => {
+  const { id } = req.params;
+
+  const query = `
+    SELECT 
+      r.id,
+      r.testo,
+      r.data_creazione,
+      u.username,
+      o.titolo,
+      o.poster,
+      o.anno_uscita,
+      v.valore_stelle,
+      IFNULL(la.num_likes, 0) AS numero_like
+    FROM recensione r
+    JOIN utente u ON r.id_utente = u.id
+    JOIN opera o ON r.id_opera = o.id
+    LEFT JOIN voto v ON r.id_utente = v.id_utente AND r.id_opera = v.id_opera
+    LEFT JOIN (
+      SELECT id_target, COUNT(*) AS num_likes 
+      FROM like_azione 
+      WHERE tipo_target = 'recensione' 
+      GROUP BY id_target
+    ) la ON r.id = la.id_target
+    WHERE r.id = ?
+  `;
+
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Errore SQL singola recensione:", err);
+      return res.status(500).json({ errore: "Errore interno del server" });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ errore: "Recensione introvabile" });
+    }
+    res.json(results[0]);
+  });
+});
+
+// 3. Salva una nuova recensione
+app.post("/api/opere/recensione/:slug", (req, res) => {
+  const { slug } = req.params;
+  const { testo, id_utente } = req.body;
+  const utenteId = id_utente || 2; // Fallback sull'utente "cinefilo_ita" (ID: 2) se non loggato
+
+  db.query("SELECT * FROM opera", (err, opere) => {
+    if (err) return res.status(500).json({ errore: "Errore nel controllo delle opere" });
+
+    const generateSlug = (titolo) => titolo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const opera = opere.find(o => generateSlug(o.titolo) === slug);
+
+    if (!opera) return res.status(404).json({ errore: "Film non localizzato" });
+
+    const query = "INSERT INTO recensione (testo, id_opera, id_utente) VALUES (?, ?, ?)";
+    db.query(query, [testo, opera.id, utenteId], (err, results) => {
+      if (err) {
+        console.error("Errore SQL inserimento recensione:", err);
+        return res.status(500).json({ errore: "Impossibile salvare la recensione" });
+      }
+      res.status(201).json({ messaggio: "Recensione inserita", id: results.insertId });
+    });
+  });
+});
+
+/* =========================================================
+   ROTTE RECENSIONI, VOTI E LIKE (INTEGRATE)
+========================================================= */
+
+// 1. Legge tutte le recensioni di un film (per FilmPage) incluse le stelle dell'utente e il contatore dei like
+app.get("/api/opere/recensioni/:slug", (req, res) => {
+  const { slug } = req.params;
+
+  // Recuperiamo prima l'opera per lo slug
+  db.query("SELECT * FROM opera", (err, opere) => {
+    if (err) return res.status(500).json({ errore: "Errore nel caricamento dei film" });
+
+    const generateSlug = (titolo) => titolo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const opera = opere.find(o => generateSlug(o.titolo) === slug);
+
+    if (!opera) return res.status(404).json({ errore: "Film non trovato" });
+
+    const queryRecensioni = `
+      SELECT 
+        r.id, 
+        r.testo, 
+        r.spoiler, 
+        r.data_creazione, 
+        u.username,
+        v.valore_stelle,
+        (SELECT COUNT(*) FROM like_azione WHERE id_target = r.id AND tipo_target = 'recensione') AS numero_like
+      FROM recensione r
+      JOIN utente u ON r.id_utente = u.id
+      LEFT JOIN voto v ON r.id_utente = v.id_utente AND r.id_opera = v.id_opera
+      WHERE r.id_opera = ?
+      ORDER BY r.data_creazione DESC
+    `;
+
+    db.query(queryRecensioni, [opera.id], (err, recensioniData) => {
+      if (err) {
+        console.error("Errore SQL recensioni:", err);
+        return res.status(500).json({ errore: "Errore nel recupero delle recensioni" });
+      }
+      res.json(recensioniData);
+    });
+  });
+});
+
+// 2. Legge i dettagli di una SINGOLA recensione (per RecensionePage) con stelle dell'utente e contatore dei like
+app.get("/api/recensioni/:id", (req, res) => {
+  const { id } = req.params;
+
+  const query = `
+    SELECT 
+      r.id,
+      r.testo,
+      r.data_creazione,
+      u.username,
+      o.titolo,
+      o.poster,
+      o.anno_uscita,
+      v.valore_stelle,
+      (SELECT COUNT(*) FROM like_azione WHERE id_target = r.id AND tipo_target = 'recensione') AS numero_like
+    FROM recensione r
+    JOIN utente u ON r.id_utente = u.id
+    JOIN opera o ON r.id_opera = o.id
+    LEFT JOIN voto v ON r.id_utente = v.id_utente AND r.id_opera = v.id_opera
+    WHERE r.id = ?
+  `;
+
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Errore SQL singola recensione:", err);
+      return res.status(500).json({ errore: "Errore nel recupero della recensione" });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ errore: "Recensione non trovata" });
+    }
+    res.json(results[0]);
+  });
+});
+
+// 3. Permette l'inserimento di una nuova recensione
+app.post("/api/opere/recensione/:slug", (req, res) => {
+  const { slug } = req.params;
+  const { testo, id_utente } = req.body;
+  const utenteId = id_utente || 2; // Default su utente predefinito se non autenticato
+
+  db.query("SELECT * FROM opera", (err, opere) => {
+    if (err) return res.status(500).json({ errore: "Errore server" });
+
+    const generateSlug = (titolo) => titolo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const opera = opere.find(o => generateSlug(o.titolo) === slug);
+
+    if (!opera) return res.status(404).json({ errore: "Film non trovato" });
+
+    const query = "INSERT INTO recensione (testo, id_opera, id_utente) VALUES (?, ?, ?)";
+    db.query(query, [testo, opera.id, utenteId], (err, results) => {
+      if (err) return res.status(500).json({ errore: "Errore nel salvataggio della recensione" });
+      res.status(201).json({ messaggio: "Recensione salvata", id: results.insertId });
+    });
+  });
+});
+
+/* =========================
+   AVVIO SERVER
+========================= */
+app.listen(PORT, () => {
+  console.log(`Server avviato su http://localhost:${PORT}`);
 });
