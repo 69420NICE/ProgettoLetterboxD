@@ -32,6 +32,7 @@ function FilmPage() {
   const [showDiarioModal, setShowDiarioModal] = useState(false);
   const [dataVisione, setDataVisione] = useState(new Date().toISOString().split('T')[0]);
 
+  const [isInWatchlist, setIsInWatchlist] = useState(false); // Stato booleano reale per la presenza
   const [watchlistStatus, setWatchlistStatus] = useState("default");
   const [diarioStatus, setDiarioStatus] = useState("default");
 
@@ -45,10 +46,16 @@ function FilmPage() {
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [voto, setVoto] = useState("");
+
   useEffect(() => {
+    // Sincronizziamo il recupero dell'utente per poterlo usare subito nella fetch condizionale
     const userInStorage = localStorage.getItem("utente");
+    let attualeUtente = null;
     if (userInStorage) {
-      setUtente(JSON.parse(userInStorage));
+      attualeUtente = JSON.parse(userInStorage);
+      setUtente(attualeUtente);
     }
 
     const fetchFilmEDettagli = async () => {
@@ -67,6 +74,15 @@ function FilmPage() {
           setRecensioni(recensioniData);
         }
 
+        // Se l'utente è loggato, verifichiamo subito lo stato della sua watchlist per questo film
+        if (attualeUtente && filmData) {
+          const watchlistCheck = await fetch(`http://localhost:3001/api/watchlist/${attualeUtente.id}/${filmData.id}`);
+          if (watchlistCheck.ok) {
+            const checkData = await watchlistCheck.json();
+            setIsInWatchlist(checkData.inWatchlist); // Si aspetta un riscontro vero/falso dal server
+          }
+        }
+
         setIsLoading(false);
       } catch (err) {
         setError(err.message);
@@ -77,26 +93,34 @@ function FilmPage() {
     fetchFilmEDettagli();
   }, [slug]);
 
-  // ================= LOGICA WATCHLIST =================
+  // ================= LOGICA TOGGLE WATCHLIST (AGGIUNGI / RIMUOVI) =================
   const handleAggiungiWatchlist = async () => {
-    if (!utente) return;
+    if (!utente || !film) return;
     setWatchlistStatus("loading");
     
+    // Se è già presente usiamo il metodo DELETE, altrimenti usiamo POST
+    const metodo = isInWatchlist ? "DELETE" : "POST";
+    const url = isInWatchlist 
+      ? `http://localhost:3001/api/watchlist/${utente.id}/${film.id}`
+      : "http://localhost:3001/api/watchlist";
+
     try {
-      const res = await fetch("http://localhost:3001/api/watchlist", {
-        method: "POST",
+      const res = await fetch(url, {
+        method: metodo,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id_utente: utente.id, id_opera: film.id })
+        body: metodo === "POST" ? JSON.stringify({ id_utente: utente.id, id_opera: film.id }) : null
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.errore);
       
+      if (!res.ok) throw new Error("Errore nell'operazione");
+      
+      // Invertiamo lo stato booleano e diamo il feedback di successo
+      setIsInWatchlist(!isInWatchlist);
       setWatchlistStatus("success");
-      setTimeout(() => setWatchlistStatus("default"), 2500);
+      setTimeout(() => setWatchlistStatus("default"), 2000);
 
     } catch (err) {
       setWatchlistStatus("error");
-      setTimeout(() => setWatchlistStatus("default"), 2500);
+      setTimeout(() => setWatchlistStatus("default"), 2000);
     }
   };
 
@@ -165,41 +189,53 @@ function FilmPage() {
   };
 
   // ================= LOGICA RECENSIONI =================
-  const handleReviewSubmit = async (e) => {
-    e.preventDefault();
-    if (!utente) return;
-    setIsSubmitting(true);
-    setSubmitError(null);
-    setSubmitSuccess(false);
+const handleReviewSubmit = async (e) => {
+  e.preventDefault();
+  if (!utente) return;
+  setIsSubmitting(true);
+  setSubmitError(null);
+  setSubmitSuccess(false);
 
-    try {
-      const response = await fetch(`http://localhost:3001/api/opere/recensione/${slug}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ testo: nuovaRecensione, id_utente: utente.id }),
-      });
+  try {
+    const response = await fetch(`http://localhost:3001/api/opere/recensione/${slug}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        testo: nuovaRecensione, 
+        id_utente: utente.id,
+        voto: voto ? parseFloat(voto) : null // Inviamo il voto numerico
+      }),
+    });
 
-      if (!response.ok) throw new Error("Errore durante l'invio.");
-      const resJson = await response.json();
+    if (!response.ok) throw new Error("Errore durante l'invio.");
+    const resJson = await response.json();
 
-      const mockNuovaRecensione = {
-        id: resJson.id || Date.now(),
-        testo: nuovaRecensione,
-        data_creazione: new Date().toISOString(),
-        username: utente.username,
-        valore_stelle: null,
-        numero_like: 0
-      };
+    const mockNuovaRecensione = {
+      id: resJson.id || Date.now(),
+      testo: nuovaRecensione,
+      data_creazione: new Date().toISOString(),
+      username: utente.username,
+      valore_stelle: voto ? parseFloat(voto) : null, // Viene intercettato subito da renderStelle()
+      numero_like: 0
+    };
 
-      setRecensioni([mockNuovaRecensione, ...recensioni]);
-      setSubmitSuccess(true);
-      setNuovaRecensione("");
-    } catch (err) {
-      setSubmitError(err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    setRecensioni([mockNuovaRecensione, ...recensioni]);
+    setSubmitSuccess(true);
+    setNuovaRecensione("");
+    setVoto("");
+    
+    // Chiude il modale dopo un breve istante di conferma visiva
+    setTimeout(() => {
+      setSubmitSuccess(false);
+      setShowReviewModal(false);
+    }, 1200);
+
+  } catch (err) {
+    setSubmitError(err.message);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (isLoading) return <div style={{ color: "white", padding: "100px", textAlign: "center" }}>Caricamento film...</div>;
   if (error) return <div style={{ color: "white", padding: "100px", textAlign: "center" }}>{error}</div>;
@@ -232,22 +268,33 @@ function FilmPage() {
                 Logga Visione
               </button>
               
-              <button 
-                onClick={handleAggiungiWatchlist}
-                disabled={watchlistStatus !== "default"}
-                style={{ 
-                  background: watchlistStatus === "success" ? "#00c030" : watchlistStatus === "error" ? "#ff4040" : "#2c3440", 
-                  color: watchlistStatus === "default" ? "#8c9babc4" : "white", 
-                  border: watchlistStatus === "default" ? "1px solid #445566" : "1px solid transparent", 
-                  padding: "10px", borderRadius: "4px", cursor: watchlistStatus === "default" ? "pointer" : "default", 
-                  fontWeight: "bold", textTransform: "uppercase", transition: "all 0.3s ease" 
-                }}
-              >
-                {watchlistStatus === "default" && "+ Watchlist"}
-                {watchlistStatus === "loading" && "..."}
-                {watchlistStatus === "success" && "✓ Aggiunto"}
-                {watchlistStatus === "error" && "Già presente"}
-              </button>
+{/* PULSANTE WATCHLIST INTERATTIVO E DINAMICO */}
+<button 
+  onClick={handleAggiungiWatchlist}
+  disabled={watchlistStatus === "loading"}
+  style={{ 
+    background: watchlistStatus === "success" 
+      ? "#00c030" 
+      : watchlistStatus === "error" 
+      ? "#ff4040" 
+      : isInWatchlist 
+      ? "#e13434" // Rosso quando il film è già presente nella watchlist
+      : "#2c3440", 
+    color: (watchlistStatus === "default" && !isInWatchlist) ? "#8c9babc4" : "white", 
+    border: watchlistStatus === "default" && !isInWatchlist ? "1px solid #445566" : "1px solid transparent", 
+    padding: "10px", 
+    borderRadius: "4px", 
+    cursor: "pointer", 
+    fontWeight: "bold", 
+    textTransform: "uppercase", 
+    transition: "all 0.3s ease" 
+  }}
+>
+  {watchlistStatus === "loading" && "..."}
+  {watchlistStatus === "error" && "Errore"}
+  {watchlistStatus === "success" && (isInWatchlist ? "✓ Aggiunto" : "Rimosso")}
+  {watchlistStatus === "default" && (isInWatchlist ? "Rimuovi dalla watchlist" : "+ Watchlist")}
+</button>
 
               <button 
                 onClick={apriModaleListe}
@@ -338,17 +385,18 @@ function FilmPage() {
             )}
           </div>
 
-          <div style={{ marginTop: "20px", borderTop: "1px solid #2c3440", paddingTop: "20px" }}>
-            <h4 style={{ color: "white", textTransform: "uppercase", fontSize: "1rem" }}>Lascia il tuo parere</h4>
-            {submitSuccess && <div style={{ color: "#00c030", padding: "10px 0" }}>✓ Pubblicata!</div>}
-            {submitError && <div style={{ color: "#ff4040", padding: "10px 0" }}>{submitError}</div>}
-            <form onSubmit={handleReviewSubmit}>
-              <textarea value={nuovaRecensione} onChange={(e) => setNuovaRecensione(e.target.value)} placeholder="Scrivi qui..." required style={{ width: "100%", height: "80px", backgroundColor: "#1c252d", border: "1px solid #445566", color: "white", padding: "10px", borderRadius: "4px", marginBottom: "10px" }} />
-              <button type="submit" disabled={isSubmitting || !utente} style={{ backgroundColor: utente ? "#00c030" : "#445566", color: "white", border: "none", padding: "10px 20px", borderRadius: "4px", fontWeight: "bold", cursor: utente ? "pointer" : "not-allowed" }}>
-                {utente ? "Invia" : "Accedi per recensire"}
-              </button>
-            </form>
-          </div>
+<div style={{ marginTop: "30px", borderTop: "1px solid #2c3440", paddingTop: "20px", textAlign: "center" }}>
+  {utente ? (
+    <button 
+      onClick={() => setShowReviewModal(true)}
+      style={{ backgroundColor: "#00c030", color: "white", border: "none", padding: "12px 28px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.5px", fontSize: "0.9rem" }}
+    >
+      ★ Recensisci o assegna un voto
+    </button>
+  ) : (
+    <p style={{ fontStyle: "italic", color: "#667788" }}>Accedi alla piattaforma per poter votare e recensire questa opera.</p>
+  )}
+</div>
         </article>
       </main>
 
@@ -407,6 +455,65 @@ function FilmPage() {
                 ))
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODALE PER L'INSERIMENTO DI VOTO E RECENSIONE */}
+      {showReviewModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999 }}>
+          <div style={{ background: "#2c3440", padding: "30px", borderRadius: "6px", width: "450px", border: "1px solid #445566", position: "relative" }}>
+            <button onClick={() => { setShowReviewModal(false); setSubmitError(null); }} style={{ position: "absolute", top: "10px", right: "15px", background: "none", border: "none", color: "#8c9babc4", fontSize: "1.5rem", cursor: "pointer" }}>×</button>
+            
+            <h2 style={{ color: "white", marginTop: 0, borderBottom: "1px solid #445566", paddingBottom: "10px", fontSize: "1.25rem" }}>Esprimi il tuo parere</h2>
+            <p style={{ color: "#00e054", fontWeight: "bold", margin: "5px 0 15px 0", fontSize: "0.95rem" }}>{film.titolo}</p>
+            
+            {submitSuccess && <div style={{ color: "#00c030", fontWeight: "bold", paddingBottom: "10px" }}>✓ Pubblicata con successo!</div>}
+            {submitError && <div style={{ color: "#ff4040", fontWeight: "bold", paddingBottom: "10px" }}>{submitError}</div>}
+            
+            <form onSubmit={handleReviewSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+              
+              {/* SELEZIONE DELLE STELLE */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                <label style={{ color: "#8c9babc4", fontSize: "0.8rem", textTransform: "uppercase", fontWeight: "bold" }}>Valutazione (Stelle)</label>
+                <select 
+                  value={voto} 
+                  onChange={(e) => setVoto(e.target.value)} 
+                  style={{ padding: "10px", borderRadius: "4px", border: "none", background: "#14181c", color: "white", outline: "none", cursor: "pointer", fontWeight: "bold" }}
+                >
+                  <option value="">Senza voto</option>
+                  <option value="1">★ (1.0)</option>
+                  <option value="1.5">★½ (1.5)</option>
+                  <option value="2">★★ (2.0)</option>
+                  <option value="2.5">★★½ (2.5)</option>
+                  <option value="3">★★★ (3.0)</option>
+                  <option value="3.5">★★★½ (3.5)</option>
+                  <option value="4">★★★★ (4.0)</option>
+                  <option value="4.5">★★★★½ (4.5)</option>
+                  <option value="5">★★★★★ (5.0)</option>
+                </select>
+              </div>
+
+              {/* AREA DI TESTO RECENSIONE */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                <label style={{ color: "#8c9babc4", fontSize: "0.8rem", textTransform: "uppercase", fontWeight: "bold" }}>Recensione Scritta</label>
+                <textarea 
+                  value={nuovaRecensione} 
+                  onChange={(e) => setNuovaRecensione(e.target.value)} 
+                  placeholder="Scrivi qui i tuoi pensieri personali sul film..." 
+                  required 
+                  style={{ width: "100%", height: "110px", backgroundColor: "#14181c", border: "none", color: "white", padding: "10px", borderRadius: "4px", resize: "none", outline: "none", lineHeight: "1.4" }} 
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                style={{ padding: "12px", background: "#00b020", color: "white", border: "none", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", textTransform: "uppercase", marginTop: "5px" }}
+              >
+                {isSubmitting ? "Invio in corso..." : "Salva e pubblica"}
+              </button>
+            </form>
           </div>
         </div>
       )}

@@ -458,19 +458,91 @@ app.get("/api/recensioni/:id", (req, res) => {
 
 app.post("/api/opere/recensione/:slug", (req, res) => {
   const { slug } = req.params;
-  const { testo, id_utente } = req.body;
-  const utenteId = id_utente || 2;
+  const { testo, id_utente, voto } = req.body; // Riceve anche il voto decimale dal frontend
+  const utenteId = id_utente || 2; 
 
   db.query("SELECT * FROM opera", (err, opere) => {
     if (err) return res.status(500).json({ errore: "Errore server" });
 
     const generateSlug = (titolo) => titolo.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
     const opera = opere.find(o => generateSlug(o.titolo) === slug);
+
     if (!opera) return res.status(404).json({ errore: "Film non trovato" });
 
-    db.query("INSERT INTO recensione (testo, id_opera, id_utente) VALUES (?, ?, ?)", [testo, opera.id, utenteId], (err, results) => {
-      if (err) return res.status(500).json({ errore: "Errore salvataggio" });
-      res.status(201).json({ messaggio: "Recensione salvata", id: results.insertId });
+    // 1. Salviamo la recensione testuale
+    const queryRecensione = "INSERT INTO recensione (testo, id_opera, id_utente) VALUES (?, ?, ?)";
+    db.query(queryRecensione, [testo, opera.id, utenteId], (errRec, results) => {
+      if (errRec) {
+        console.error("Errore inserimento recensione:", errRec);
+        return res.status(500).json({ errore: "Errore nel salvataggio della recensione" });
+      }
+      
+      const recensioneId = results.insertId;
+
+      // 2. Se l'utente ha selezionato anche un voto, lo salviamo/aggiorniamo nella tabella voto
+      if (voto) {
+        const queryVoto = `
+          INSERT INTO voto (id_utente, id_opera, valore_stelle) 
+          VALUES (?, ?, ?) 
+          ON DUPLICATE KEY UPDATE valore_stelle = ?
+        `;
+        db.query(queryVoto, [utenteId, opera.id, voto, voto], (errVoto) => {
+          if (errVoto) {
+            console.error("Errore salvataggio relazione voto:", errVoto);
+          }
+          return res.status(201).json({ messaggio: "Recensione e voto salvati correttamente", id: recensioneId });
+        });
+      } else {
+        return res.status(201).json({ messaggio: "Recensione salvata senza voto", id: recensioneId });
+      }
+    });
+  });
+});
+
+// Elimina una recensione esistente (Metodo DELETE)
+app.delete("/api/recensioni/:id", (req, res) => {
+  const { id } = req.params;
+  const query = "DELETE FROM recensione WHERE id = ?";
+
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Errore eliminazione recensione:", err);
+      return res.status(500).json({ errore: "Errore durante l'eliminazione" });
+    }
+    res.json({ messaggio: "Recensione eliminata correttamente" });
+  });
+});
+
+// Modifica il testo e le stelle di una recensione (Metodo PUT)
+app.put("/api/recensioni/:id", (req, res) => {
+  const { id } = req.params;
+  const { testo, voto } = req.body;
+
+  // Recuperiamo prima id_opera e id_utente legati a questa recensione per poter aggiornare la tabella voto
+  db.query("SELECT id_opera, id_utente FROM recensione WHERE id = ?", [id], (err, recData) => {
+    if (err || recData.length === 0) return res.status(500).json({ errore: "Recensione non trovata" });
+
+    const { id_opera, id_utente } = recData[0];
+
+    // 1. Aggiorniamo il testo della recensione
+    db.query("UPDATE recensione SET testo = ? WHERE id = ?", [testo, id], (errRec) => {
+      if (errRec) return res.status(500).json({ errore: "Errore aggiornamento testo" });
+
+      // 2. Se c'è un voto, lo inseriamo o aggiorniamo, altrimenti lo cancelliamo
+      if (voto) {
+        const queryVoto = `
+          INSERT INTO voto (id_utente, id_opera, valore_stelle) VALUES (?, ?, ?)
+          ON DUPLICATE KEY UPDATE valore_stelle = ?
+        `;
+        db.query(queryVoto, [id_utente, id_opera, voto, voto], (errVoto) => {
+          if (errVoto) console.error(errVoto);
+          return res.json({ messaggio: "Recensione e voto aggiornati" });
+        });
+      } else {
+        db.query("DELETE FROM voto WHERE id_utente = ? AND id_opera = ?", [id_utente, id_opera], () => {
+          return res.json({ messaggio: "Recensione aggiornata e voto rimosso" });
+        });
+      }
     });
   });
 });
@@ -654,15 +726,29 @@ app.get("/api/watchlist/:id_utente", (req, res) => {
 // Rimuovere un film dalla watchlist
 app.delete("/api/watchlist/:id_utente/:id_opera", (req, res) => {
   const { id_utente, id_opera } = req.params;
-
   const query = "DELETE FROM watchlist WHERE id_utente = ? AND id_opera = ?";
 
   db.query(query, [id_utente, id_opera], (err, results) => {
     if (err) {
-      console.error("Errore eliminazione watchlist:", err);
-      return res.status(500).json({ errore: "Errore durante la rimozione" });
+      console.error("Errore rimozione watchlist:", err);
+      return res.status(500).json({ errore: "Errore nella rimozione dalla watchlist" });
     }
-    res.json({ messaggio: "Film rimosso dalla watchlist" });
+    res.json({ messaggio: "Film rimosso dalla watchlist con successo" });
+  });
+});
+
+// Controllare se un film specifico è già nella watchlist di un utente
+app.get("/api/watchlist/:id_utente/:id_opera", (req, res) => {
+  const { id_utente, id_opera } = req.params;
+  const query = "SELECT * FROM watchlist WHERE id_utente = ? AND id_opera = ?";
+
+  db.query(query, [id_utente, id_opera], (err, results) => {
+    if (err) {
+      console.error("Errore controllo singola watchlist:", err);
+      return res.status(500).json({ errore: "Errore nel controllo della watchlist" });
+    }
+    // Restituisce true se il film c'è, false se non c'è
+    res.json({ inWatchlist: results.length > 0 });
   });
 });
 
